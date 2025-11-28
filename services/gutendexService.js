@@ -1,0 +1,1 @@
+// External API fetching logic
