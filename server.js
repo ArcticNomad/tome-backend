@@ -1,39 +1,51 @@
+// server.js (Backend)
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/mongooseConfig');
-const allRoutes = require('./routes');
 const mongoose = require('mongoose');
 const bookRoutes = require('./routes/bookRoutes');
 
 const app = express();
-// Railway automatically sets the PORT environment variable
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
-// --- MONGODB CONNECTION ---
-connectDB();
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('✅ MongoDB connected successfully'))
+    .catch(err => {
+        console.error('❌ MongoDB connection error:', err);
+        process.exit(1);
+    });
 
-// --- MIDDLEWARE ---
-// CORS configuration
-const frontendURL = process.env.FRONTEND_URL; // Should be your Vercel URL
-const corsOptions = {
-    origin: frontendURL || '*', // Allow Vercel frontend or any origin if testing locally
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-};
-app.use(cors(corsOptions));
-app.use(express.json()); // Allows parsing JSON bodies
+// Enhanced CORS configuration
+app.use(cors({
+    origin: [
+        'http://localhost:5173', // Vite default port
+        'http://localhost:3000', // Create React App default
+        'https://tome-frontend-arc.vercel.app'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-// --- API ROUTES ---
-app.use(allRoutes);
+// Handle preflight requests
+app.options('*', cors());
 
-// 1. Health Check (Always public)
-app.get('/', (req, res) => {
-  res.send(`Backend is running. MongoDB connection state: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'}`);
+app.use(express.json());
+
+// Routes
+app.use('/api/books', bookRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        timestamp: new Date().toISOString()
+    });
 });
 
-
-// --- SERVER START ---
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+    console.log(`🚀 Server running on port ${port}`);
+    console.log(`📍 Frontend should connect from: http://localhost:5173`);
 });
