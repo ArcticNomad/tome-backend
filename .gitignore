@@ -1,5 +1,7 @@
 # Environment variables
 .env
-
+voltaic-bridge-479408-i4-7fad0b8f7278.json
 # Dependencies
 node_modules
+scripts
+downloaded-books
