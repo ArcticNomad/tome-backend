@@ -1,10 +1,16 @@
-// backend/config/firebaseAdmin.js
+// NEW - using environment variables
 const admin = require('firebase-admin');
 
-const serviceAccount = require('../tome-bca58-firebase-adminsdk-fbsvc-f2a5b2a284.json');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// Initialize Firebase Admin with environment variables
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      type: 'service_account',
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    }),
+  });
+}
 
 module.exports = admin;
