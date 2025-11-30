@@ -33,3 +33,4 @@ scripts/downloaded-books/
 
 node_modules
 
+*.json
