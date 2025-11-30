@@ -1,10 +1,31 @@
-# Environment variables
+# .gitignore
+# Environment
 .env
-voltaic-bridge-479408-i4-7fad0b8f7278.json
-# Dependencies
-node_modules
-scripts
-downloaded-books
-tome-bca58-firebase-adminsdk-fbsvc-f2a5b2a284.json*.json
+.env.local
+.env.production
+
+# Firebase
+*.json
 firebase-adminsdk-*.json
 serviceAccountKey.json
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+download-books
+scripts/downloaded-books/
+scripts
+tome-bca58-firebase-adminsdk-fbsvc-a33e2c2e86.json
