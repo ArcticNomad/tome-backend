@@ -30,3 +30,5 @@ scripts/downloaded-books/
 scripts
 tome-bca58-firebase-adminsdk-fbsvc-a33e2c2e86.json
 scripts/downloaded-books/
+
+node_modules
