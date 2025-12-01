@@ -36,6 +36,20 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Backend is working!',
+    availableEndpoints: [
+      'GET /api/health',
+      'GET /api/test-cors',
+      'GET /api/test',
+      'POST /api/users/create-profile',
+      'GET /api/users/profile',
+      'PUT /api/users/profile'
+    ]
+  });
+});
 
 // Test route to verify CORS
 app.get('/api/test-cors', (req, res) => {
@@ -45,6 +59,35 @@ app.get('/api/test-cors', (req, res) => {
     origin: req.headers.origin 
   });
 });
+
+// Add this debug route to your server.js file:
+app.get('/api/debug-all-routes', (req, res) => {
+  const routes = [];
+  
+  // Loop through all registered routes
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // Routes registered directly on the app
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      // Routes mounted with app.use()
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push({
+            path: middleware.regexp.toString() + handler.route.path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({ routes });
+});
+
 
 // Database connection
 const connectDB = require('./config/mongooseConfig');

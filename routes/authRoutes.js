@@ -1,4 +1,4 @@
-// backend/routes/auth.js
+// backend/routes/authRoutes.js
 const express = require('express');
 const { verifyFirebaseToken } = require('../middleware/authMiddleware');
 const User = require('../models/User');
