@@ -19,14 +19,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Alternative: Allow all origins (for development only)
-// app.use(cors());
-
 app.use(express.json());
 
-// Routes
+// ROUTES
 app.use('/api/books', require('./routes/bookRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/recommend', require('./routes/recommendRoutes'));   // ⭐ NEW ROUTE ADDED
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -36,6 +34,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
 app.get('/api/test', (req, res) => {
   res.json({ 
     success: true, 
@@ -46,7 +45,8 @@ app.get('/api/test', (req, res) => {
       'GET /api/test',
       'POST /api/users/create-profile',
       'GET /api/users/profile',
-      'PUT /api/users/profile'
+      'PUT /api/users/profile',
+      'GET /api/recommend'
     ]
   });
 });
@@ -60,20 +60,17 @@ app.get('/api/test-cors', (req, res) => {
   });
 });
 
-// Add this debug route to your server.js file:
+// Debug route to list all routes
 app.get('/api/debug-all-routes', (req, res) => {
   const routes = [];
   
-  // Loop through all registered routes
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
-      // Routes registered directly on the app
       routes.push({
         path: middleware.route.path,
         methods: Object.keys(middleware.route.methods)
       });
     } else if (middleware.name === 'router') {
-      // Routes mounted with app.use()
       middleware.handle.stack.forEach((handler) => {
         if (handler.route) {
           routes.push({
@@ -87,7 +84,6 @@ app.get('/api/debug-all-routes', (req, res) => {
   
   res.json({ routes });
 });
-
 
 // Database connection
 const connectDB = require('./config/mongooseConfig');
