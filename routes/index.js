@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const bookRoutes = require('./bookRoutes');
+const reviewRoutes = require('./reviewRoutes');
 // const authRoutes = require('./authRoutes');
 
 

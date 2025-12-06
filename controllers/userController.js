@@ -5,77 +5,128 @@ const Book = require('../models/Book');
 // ========== PROFILE MANAGEMENT ==========
 
 // Create user profile (after Firebase signup)
+// backend/controllers/userController.js → REPLACE createUserProfile
 const createUserProfile = async (req, res) => {
   try {
-    const {
-      displayName,
-      personalDetails,
-      readingPreferences,
-      favoriteBook
-    } = req.body;
+    const firebaseUid = req.user.uid;
+    const email = req.user.email;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ firebaseUid: req.user.uid });
+    // Check if profile already exists
+    const existingUser = await User.findOne({ firebaseUid });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User profile already exists'
+        message: 'Profile already exists'
       });
     }
 
+    const {
+      displayName,
+      gender,
+      birthDate,
+      location,           // "London, United Kingdom"
+      favoriteGenres,
+      readingGoal,
+      favoriteBook
+    } = req.body;
 
-    // Create new user with profile data
-    const user = new User({
-      firebaseUid: req.user.uid,
-      email: req.user.email,
-      displayName: displayName || req.user.displayName || 'Reader',
-      personalDetails: personalDetails || {},
-      readingPreferences: readingPreferences || {},
-      // Initialize empty bookshelves
-      bookshelves: {
-        currentlyReading: [],
-        wantToRead: [],
-        read: []
-      },
-      // Initialize reading stats
-      readingStats: {
-        booksRead: 0,
-        readingStreak: 0,
-        currentStreak: 0,
-        totalReadingTime: 0,
-        pagesRead: 0,
-        averageRating: 0,
-        reviewsWritten: 0
-      },
-      // Initialize social stats
-      social: {
-        friendsCount: 0,
-        followingCount: 0,
-        followersCount: 0
-      }
-    });
-
-    // Add favorite book if provided
-    if (favoriteBook) {
-      user.readingPreferences.favoriteBook = favoriteBook;
+    // Parse location string
+    let city = '';
+    let country = '';
+    if (location) {
+      const parts = location.split(',').map(s => s.trim());
+      city = parts[0] || '';
+      country = parts[1] || parts[0] || '';
     }
+
+    const user = new User({
+      firebaseUid,
+      email,
+      displayName: displayName || email.split('@')[0],
+
+      personalDetails: {
+        gender: gender || null,
+        birthDate: birthDate ? new Date(birthDate) : null,
+        location: { city, country },
+        profilePicture: null,
+        bio: ''
+      },
+
+      readingPreferences: {
+        favoriteGenres: favoriteGenres || [],
+        readingGoal: readingGoal || 'casual',
+        favoriteBook: favoriteBook || null
+      },
+
+      // Everything else uses defaults
+      readingStats: {},
+      bookshelves: { currentlyReading: [], wantToRead: [], read: [] },
+      social: {}
+    });
 
     await user.save();
 
     res.status(201).json({
       success: true,
-      message: 'User profile created successfully',
+      message: 'Profile created successfully',
       data: user.getPublicProfile()
     });
+
   } catch (error) {
-    console.error('Create user profile error:', error);
+    console.error('Create profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating user profile',
+      message: 'Failed to create profile',
       error: error.message
     });
   }
 };
+
+const checkAvailability = async (req, res) => {
+  try {
+    const { field, value } = req.query;
+
+    if (!field || !value) {
+      return res.status(400).json({
+        success: false,
+        message: 'Field and value are required'
+      });
+    }
+
+    // Only allow checking specific fields
+    const allowedFields = ['displayName', 'email'];
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid field for availability check'
+      });
+    }
+
+    const query = {};
+    // Case-insensitive check for display name
+    if (field === 'displayName') {
+      query[field] = { $regex: new RegExp(`^${value}$`, 'i') };
+    } else {
+      query[field] = value;
+    }
+
+    const existingUser = await User.findOne(query);
+
+    res.json({
+      success: true,
+      available: !existingUser,
+      message: existingUser ? `${field} is already taken` : `${field} is available`
+    });
+  } catch (error) {
+    console.error('Check availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking availability',
+      error: error.message
+    });
+  }
+};
+
 
 const getBookStatus = async (req, res) => {
   
@@ -106,18 +157,17 @@ const getBookStatus = async (req, res) => {
   } catch (error) {
     console.error('Get book status error:', error);
     res.status(500).json({ success: false, message: 'Error checking status' });
-  }
+  } 
 };
 
-// Get user profile
+// backend/controllers/userController.js
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ firebaseUid: req.user.uid });
-    
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Profile not found'
       });
     }
 
@@ -126,11 +176,10 @@ const getUserProfile = async (req, res) => {
       data: user.getPublicProfile()
     });
   } catch (error) {
-    console.error('Get user profile error:', error);
+    console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching user profile',
-      error: error.message
+      message: 'Server error'
     });
   }
 };
@@ -308,6 +357,7 @@ const getBookshelf = async (req, res) => {
 
 // ========== READING PROGRESS ==========
 
+// backend/controllers/userController.js
 const updateReadingProgress = async (req, res) => {
   try {
     const { bookId, gutenbergId, currentPage, progress, readingTime } = req.body;
@@ -336,6 +386,9 @@ const updateReadingProgress = async (req, res) => {
       });
     }
 
+    // Update reading activity streak
+    await user.updateReadingActivity();
+
     // Update reading progress
     const existingProgress = user.readingHistory.find(
       item => item.bookId.toString() === book._id.toString()
@@ -362,15 +415,27 @@ const updateReadingProgress = async (req, res) => {
     // Update reading stats
     if (progress >= 100 && !existingProgress?.isFinished) {
       user.readingStats.booksRead += 1;
-      // Add to "read" bookshelf automatically
-      await user.addToBookshelf(book._id, 'read', book.gutenbergId);
+      
+      // Add to "read" bookshelf automatically if not already there
+      const isAlreadyRead = user.bookshelves.read.some(
+        item => item.bookId.toString() === book._id.toString()
+      );
+      
+      if (!isAlreadyRead) {
+        await user.addToBookshelf(book._id, 'read', book.gutenbergId);
+      }
     }
 
-    // Update reading streak
-    await user.updateReadingStreak();
+    // Update total reading time (in hours)
+    const additionalTime = readingTime || 0;
+    user.readingStats.totalReadingTime += additionalTime / 60; // Convert minutes to hours
+    
+    // Update pages read
+    if (currentPage) {
+      user.readingStats.pagesRead += Math.max(0, currentPage - (existingProgress?.currentPage || 0));
+    }
 
-    // Update total reading time
-    user.readingStats.totalReadingTime += (readingTime || 0) / 60; // Convert minutes to hours
+    // Update last reading date
     user.readingStats.lastReadingDate = new Date();
 
     await user.save();
@@ -505,11 +570,12 @@ const getFavoriteBooks = async (req, res) => {
 // ========== USER STATISTICS ==========
 // backend/controllers/userController.js
 
+// backend/controllers/userController.js
+// In your userController.js, update the statistics function:
 const getUserStatistics = async (req, res) => {
   try {
-    // FIX 1: Added 'readingHistory' and 'createdAt' to the select list
     const user = await User.findOne({ firebaseUid: req.user.uid })
-      .select('readingStats social personalDetails readingHistory createdAt'); 
+      .select('readingStats bookshelves lastActive');
     
     if (!user) {
       return res.status(404).json({
@@ -518,29 +584,21 @@ const getUserStatistics = async (req, res) => {
       });
     }
 
-    // FIX 2: Better date handling (fall back to current date if missing)
-    const joinDate = user.createdAt || (user.personalDetails && user.personalDetails.createdAt) || new Date();
-    const daysSinceJoin = Math.floor((new Date() - joinDate) / (1000 * 60 * 60 * 24));
+    // Update user's activity first
+    await user.updateReadingActivity();
+
+    // Calculate statistics
+    const booksRead = user.bookshelves.read?.length || 0;
     
-    const booksPerMonth = daysSinceJoin > 30 
-      ? (user.readingStats.booksRead / (daysSinceJoin / 30)).toFixed(1)
-      : user.readingStats.booksRead; // Just return total if less than a month
-
-    // FIX 3: Safety check for readingHistory
-    const historyLength = user.readingHistory ? user.readingHistory.length : 0;
-
     const stats = {
-      basic: user.readingStats,
-      social: user.social,
-      calculated: {
-        daysSinceJoin,
-        booksPerMonth,
-        readingEfficiency: user.readingStats.totalReadingTime > 0 
-          ? (user.readingStats.pagesRead / user.readingStats.totalReadingTime).toFixed(1)
-          : 0,
-        completionRate: historyLength > 0
-          ? ((user.readingStats.booksRead / historyLength) * 100).toFixed(1)
-          : 0
+      basic: {
+        booksRead: booksRead,
+        readingStreak: user.readingStats.readingStreak || 0,
+        currentStreak: user.readingStats.currentStreak || 0,
+        totalReadingTime: Math.round((user.readingStats.totalReadingTime || 0) * 10) / 10,
+        pagesRead: user.readingStats.pagesRead || 0,
+        averageRating: user.readingStats.averageRating || 0,
+        reviewsWritten: user.readingStats.reviewsWritten || 0
       }
     };
 
@@ -557,7 +615,6 @@ const getUserStatistics = async (req, res) => {
     });
   }
 };
-
 // ========== BOOKMARKS ==========
 
 const addBookmark = async (req, res) => {
@@ -629,7 +686,8 @@ module.exports = {
   createUserProfile,
   getUserProfile,
   updateUserProfile,
-  
+  checkAvailability,
+
   // Bookshelves
   addToBookshelf,
   removeFromBookshelf,

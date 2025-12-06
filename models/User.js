@@ -53,7 +53,7 @@ const bookmarkSchema = new mongoose.Schema({
 const personalDetailsSchema = new mongoose.Schema({
   gender: {
     type: String,
-    enum: ['male', 'female', 'other', 'prefer-not-to-say', ''],
+    enum: ['male', 'female'],
     default: ''
   },
   birthDate: Date,
@@ -298,6 +298,8 @@ userSchema.index({ 'readingPreferences.favoriteGenres': 1 });
 userSchema.index({ 'readingStats.booksRead': -1 });
 userSchema.index({ 'readingStats.readingStreak': -1 });
 
+// ========== HELPER METHODS ==========
+
 // Helper method to update reading streak
 userSchema.methods.updateReadingStreak = function() {
   const today = new Date();
@@ -353,6 +355,48 @@ userSchema.methods.addToBookshelf = function(bookId, shelfType, gutenbergId = nu
   
   if (!exists) {
     this.bookshelves[shelfType].push(shelfEntry);
+  }
+  
+  return this.save();
+};
+
+// NEW: Helper method to update reading activity and streak
+userSchema.methods.updateReadingActivity = function() {
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  // If lastActive is not set or is today, don't update streak
+  if (!this.lastActive) {
+    this.lastActive = today;
+    this.readingStats.currentStreak = 1;
+    this.readingStats.readingStreak = Math.max(this.readingStats.readingStreak || 0, 1);
+    return this.save();
+  }
+  
+  const lastActiveDate = new Date(this.lastActive);
+  const lastActiveDayStart = new Date(
+    lastActiveDate.getFullYear(),
+    lastActiveDate.getMonth(),
+    lastActiveDate.getDate()
+  );
+  
+  const daysDifference = Math.floor((todayStart - lastActiveDayStart) / (1000 * 60 * 60 * 24));
+  
+  if (daysDifference === 0) {
+    // Same day, no streak update needed
+    this.lastActive = today;
+  } else if (daysDifference === 1) {
+    // Consecutive day - continue streak
+    this.readingStats.currentStreak = (this.readingStats.currentStreak || 0) + 1;
+    this.readingStats.readingStreak = Math.max(
+      this.readingStats.readingStreak || 0,
+      this.readingStats.currentStreak
+    );
+    this.lastActive = today;
+  } else if (daysDifference > 1) {
+    // Streak broken - reset to 1 (for today)
+    this.readingStats.currentStreak = 1;
+    this.lastActive = today;
   }
   
   return this.save();

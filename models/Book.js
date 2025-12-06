@@ -8,15 +8,36 @@ const bookSchema = new mongoose.Schema({
     author: { type: String, required: true },
     subjects: { type: [String] }, 
     summary: { type: String },
+      generated_blurb: { type: String },
     downloadCount: { type: Number },
     issuedDate: { type: Date },
     readingEaseScore: { type: Number },
     coverImageUrl: { type: String },
-    isAvailable: { type: Boolean, default: true }
-}, { 
+    isAvailable: { type: Boolean, default: true },
+    averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  reviewCount: {
+    type: Number,
+    default: 0
+  },
+  ratingDistribution: {
+    1: { type: Number, default: 0 },
+    2: { type: Number, default: 0 },
+    3: { type: Number, default: 0 },
+    4: { type: Number, default: 0 },
+    5: { type: Number, default: 0 }
+  }
+},{ 
     collection: 'books',
     timestamps: true 
-});
+}
+
+
+);
 
 // Add index for better performance
 bookSchema.index({ gutenbergId: 1 });

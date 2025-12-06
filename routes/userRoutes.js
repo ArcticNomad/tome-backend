@@ -15,14 +15,14 @@ const {
   getUserStatistics,
   addBookmark,
   getBookmarks,
-  getBookStatus
-
+  getBookStatus,
+  checkAvailability
 } = require('../controllers/userController');
 
+const { trackDailyActivity } = require('../middleware/activityMiddleware');
 const router = express.Router();
 
-router.get('/books/:bookId/status', verifyFirebaseToken, getBookStatus);
-
+// PUBLIC ROUTES (no auth required)
 router.get('/test', (req, res) => {
   console.log('✅ Test route hit!');
   res.json({ message: 'User routes are working!' });
@@ -38,29 +38,36 @@ router.post('/profile/create-test', (req, res) => {
   });
 });
 
+router.get('/profile/check-availability', checkAvailability);
+
+// ========== PROTECTED ROUTES ==========
+// Apply both auth and activity tracking middleware
+const protectedRoute = [verifyFirebaseToken, trackDailyActivity];
+
 // ========== PROFILE ROUTES ==========
-router.post('/profile/create', verifyFirebaseToken, createUserProfile); // Create profile after signup
-router.get('/profile', verifyFirebaseToken, getUserProfile); // Get full profile
-router.put('/profile', verifyFirebaseToken, updateUserProfile); // Update profile
+router.post('/profile/create', protectedRoute, createUserProfile);
+router.get('/profile', protectedRoute, getUserProfile);
+router.put('/profile', protectedRoute, updateUserProfile);
 
 // ========== BOOKSHELF ROUTES ==========
-router.post('/bookshelves', verifyFirebaseToken, addToBookshelf); // Add to bookshelf
-router.delete('/bookshelves/:shelfType/:bookId', verifyFirebaseToken, removeFromBookshelf); // Remove from bookshelf
-router.get('/bookshelves/:shelfType', verifyFirebaseToken, getBookshelf); // Get specific bookshelf
+router.post('/bookshelves', protectedRoute, addToBookshelf);
+router.delete('/bookshelves/:shelfType/:bookId', protectedRoute, removeFromBookshelf);
+router.get('/bookshelves/:shelfType', protectedRoute, getBookshelf);
+router.get('/books/:bookId/status', protectedRoute, getBookStatus);
 
 // ========== READING PROGRESS ROUTES ==========
-router.post('/reading-progress', verifyFirebaseToken, updateReadingProgress); // Update progress
-router.get('/reading-history', verifyFirebaseToken, getReadingHistory); // Get reading history
+router.post('/reading-progress', protectedRoute, updateReadingProgress);
+router.get('/reading-history', protectedRoute, getReadingHistory);
 
 // ========== FAVORITES ROUTES ==========
-router.post('/favorites/:bookId/toggle', verifyFirebaseToken, toggleFavoriteBook); // Toggle favorite
-router.get('/favorites', verifyFirebaseToken, getFavoriteBooks); // Get favorite books
+router.post('/favorites/:bookId/toggle', protectedRoute, toggleFavoriteBook);
+router.get('/favorites', protectedRoute, getFavoriteBooks);
 
 // ========== STATISTICS ROUTES ==========
-router.get('/statistics', verifyFirebaseToken, getUserStatistics); // Get user stats
+router.get('/statistics', protectedRoute, getUserStatistics);
 
 // ========== BOOKMARKS ROUTES ==========
-router.post('/bookmarks', verifyFirebaseToken, addBookmark); // Add bookmark
-router.get('/bookmarks', verifyFirebaseToken, getBookmarks); // Get bookmarks
+router.post('/bookmarks', protectedRoute, addBookmark);
+router.get('/bookmarks', protectedRoute, getBookmarks);
 
 module.exports = router;
