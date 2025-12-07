@@ -16,7 +16,8 @@ const {
   addBookmark,
   getBookmarks,
   getBookStatus,
-  checkAvailability
+  checkAvailability,
+  getUserReviews
 } = require('../controllers/userController');
 
 const { trackDailyActivity } = require('../middleware/activityMiddleware');
@@ -48,6 +49,8 @@ const protectedRoute = [verifyFirebaseToken, trackDailyActivity];
 router.post('/profile/create', protectedRoute, createUserProfile);
 router.get('/profile', protectedRoute, getUserProfile);
 router.put('/profile', protectedRoute, updateUserProfile);
+// Add this with your other routes in users.js
+router.get('/reviews', protectedRoute, getUserReviews);
 
 // ========== BOOKSHELF ROUTES ==========
 router.post('/bookshelves', protectedRoute, addToBookshelf);

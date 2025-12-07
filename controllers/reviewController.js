@@ -410,6 +410,7 @@ const getUserReviews = async (req, res) => {
           bookId: book ? {
             _id: book._id,
             title: book.title,
+             gutenbergId: book.gutenbergId,
             author: book.author,
             coverImageUrl: book.coverImageUrl
           } : null

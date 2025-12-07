@@ -277,7 +277,7 @@ const addToBookshelf = async (req, res) => {
 // Remove book from bookshelf
 const removeFromBookshelf = async (req, res) => {
   try {
-    const { bookId, shelfType } = req.params;
+    const { shelfType, bookId } = req.params;
     const user = await User.findOne({ firebaseUid: req.user.uid });
     
     if (!user) {
@@ -287,24 +287,62 @@ const removeFromBookshelf = async (req, res) => {
       });
     }
 
+    // Convert kebab-case to camelCase for internal use
+    const normalizeShelfType = (type) => {
+      switch(type) {
+        case 'currently-reading':
+          return 'currentlyReading';
+        case 'want-to-read':
+          return 'wantToRead';
+        case 'read':
+          return 'read';
+        default:
+          return type;
+      }
+    };
+
+    const normalizedShelfType = normalizeShelfType(shelfType);
+
     // Validate shelf type
-    if (!['currentlyReading', 'wantToRead', 'read'].includes(shelfType)) {
+    if (!['currentlyReading', 'wantToRead', 'read'].includes(normalizedShelfType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid shelf type'
+        message: `Invalid shelf type: ${shelfType}`
       });
     }
 
-    // Remove book from shelf
-    user.bookshelves[shelfType] = user.bookshelves[shelfType].filter(
-      item => item.bookId.toString() !== bookId
+    console.log(`Removing book ${bookId} from ${normalizedShelfType} for user ${req.user.uid}`);
+    console.log('BookId type:', typeof bookId, 'Value:', bookId);
+
+    // Get initial count
+    const initialCount = user.bookshelves[normalizedShelfType]?.length || 0;
+    console.log('Initial books:', JSON.stringify(user.bookshelves[normalizedShelfType], null, 2));
+
+    // FIXED: Compare against gutenbergId, not MongoDB _id
+    user.bookshelves[normalizedShelfType] = user.bookshelves[normalizedShelfType].filter(
+      item => {
+        // Convert both to strings for comparison
+        const itemGutenbergId = item.gutenbergId?.toString();
+        const targetBookId = bookId.toString();
+        
+        console.log(`Comparing gutenbergId: ${itemGutenbergId} !== ${targetBookId} = ${itemGutenbergId !== targetBookId}`);
+        
+        // If gutenbergIds don't match, keep the item
+        return itemGutenbergId !== targetBookId;
+      }
     );
+
+    const finalCount = user.bookshelves[normalizedShelfType]?.length || 0;
+    console.log('Final books:', JSON.stringify(user.bookshelves[normalizedShelfType], null, 2));
 
     await user.save();
 
+    console.log(`Removed book from ${normalizedShelfType}. Count: ${initialCount} -> ${finalCount}`);
+
     res.json({
       success: true,
-      message: `Book removed from ${shelfType}`
+      message: `Book removed from ${shelfType}`,
+      count: finalCount
     });
   } catch (error) {
     console.error('Remove from bookshelf error:', error);
@@ -572,7 +610,7 @@ const getFavoriteBooks = async (req, res) => {
 
 // backend/controllers/userController.js
 // In your userController.js, update the statistics function:
-const getUserStatistics = async (req, res) => {
+const getUserStatistics = async (req, res) => { 
   try {
     const user = await User.findOne({ firebaseUid: req.user.uid })
       .select('readingStats bookshelves lastActive');
@@ -681,12 +719,72 @@ const getBookmarks = async (req, res) => {
   }
 };
 
+// Add this function to get user reviews
+const getUserReviews = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    
+    // First, get the user to find their MongoDB _id
+    const user = await User.findOne({ firebaseUid: userId });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Now fetch reviews for this user
+    // Assuming you have a Review model
+    const Review = require('../models/Review'); // Make sure to import your Review model
+    
+    const reviews = await Review.find({ userId: user._id })
+      .populate('bookId', 'title author coverImageUrl gutenbergId subjects')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format the response
+    const formattedReviews = reviews.map(review => ({
+      _id: review._id,
+      bookId: review.bookId?._id,
+      book: {
+        _id: review.bookId?._id,
+        title: review.bookId?.title || 'Unknown Book',
+        author: review.bookId?.author || 'Unknown Author',
+        coverImage: review.bookId?.coverImageUrl,
+        gutenbergId: review.bookId?.gutenbergId
+      },
+      rating: review.rating || 0,
+      content: review.content || '',
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      helpful: review.helpful || [],
+      helpfulCount: review.helpful?.length || 0,
+      commentCount: review.comments?.length || 0
+    }));
+
+    res.json({
+      success: true,
+      data: formattedReviews,
+      count: formattedReviews.length
+    });
+  } catch (error) {
+    console.error('Get user reviews error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user reviews',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   // Profile Management
   createUserProfile,
   getUserProfile,
   updateUserProfile,
   checkAvailability,
+  getUserReviews,
 
   // Bookshelves
   addToBookshelf,
