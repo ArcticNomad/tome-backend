@@ -3,6 +3,14 @@ const { recommendBooks } = require('../services/embeddingService');
 const User = require('../models/User');
 const Book = require('../models/Book');
  const getRecommendations = async (req, res) => {
+
+
+   console.log('🤖 [EMBEDDINGS] Controller called');
+  console.log('🔑 req.firebaseUid:', req.firebaseUid);
+  console.log('✅ req.isAuthenticated:', req.isAuthenticated);
+  console.log('👤 req.user:', req.user);
+  console.log('📝 Full req object keys:', Object.keys(req));
+  
   console.log('🤖 [EMBEDDINGS] Controller called');
   const firebaseUid = req.firebaseUid;
   const { limit = 20 } = req.query;
