@@ -1,7 +1,7 @@
 // backend/controllers/recommendController.js
 const Book = require('../models/Book');
 
-const getRecommendations = async (req, res) => {
+export const getRecommendations = async (req, res) => {
   console.log('🤖 [EMBEDDINGS] Controller called');
   const firebaseUid = req.firebaseUid;
   const { limit = 20 } = req.query;
