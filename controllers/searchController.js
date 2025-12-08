@@ -378,7 +378,7 @@ const simpleSearch = async (req, res) => {
   }
 };
 
-// QUICK SEARCH (autocomplete)
+//] QUICK SEARCH (autocomplete)
 const quickSearch = async (req, res) => {
   try {
     const { q, limit = 10 } = req.query;
