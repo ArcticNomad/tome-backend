@@ -1,12 +1,17 @@
 // backend/services/embeddingService.js
-const { pipeline } = require("@xenova/transformers");
 
 let embedder = null;
+let pipeline = null;
 
 const generateEmbedding = async (text) => {
   try {
     if (!embedder) {
       console.log("📥 Loading Xenova embedding model...");
+      
+      // Use dynamic import for ES module
+      const transformers = await import("@xenova/transformers");
+      pipeline = transformers.pipeline;
+      
       embedder = await pipeline("feature-extraction", "Xenova/all-mpnet-base-v2");
       console.log("✅ Embedding model loaded successfully");
     }
