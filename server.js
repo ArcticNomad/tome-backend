@@ -27,6 +27,7 @@ app.use(cors({
     'X-Requested-With',
     'Accept',
     'Origin',
+    'firebase-uid', // Explicitly allow the header causing the CORS issue
     'firebaseuid',
     'firebaseUid',
     'X-Firebase-Uid'
