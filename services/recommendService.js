@@ -1,39 +1,76 @@
 // backend/services/recommendService.js
 const { qdrant } = require("../config/qdrantConfig");
 const Book = require('../models/Book');
+const User = require('../models/User');
 const { generateEmbedding } = require('./embeddingService');
 
-const recommendBooks = async (favoriteGenres, limit = 20) => {
+const recommendBooks = async ({ userId, favoriteGenres, limit = 20 }) => {
   console.log('🤖 [RECOMMEND] recommendBooks called with:', {
+    userId,
     favoriteGenres,
     limit,
     genresCount: favoriteGenres ? favoriteGenres.length : 0
   });
-  
-  if (!favoriteGenres || favoriteGenres.length === 0) {
-    console.log('⚠️ No favorite genres provided');
-    return { books: [], source: 'no_genres' };
-  }
+
+  let queryVector;
+  let source = 'unknown';
+  let userFavoritedBookIds = [];
 
   try {
-    // Prepare text for embedding
-    const combinedText = Array.isArray(favoriteGenres) 
-      ? favoriteGenres.join(" ") 
-      : String(favoriteGenres);
+    // Priority 1: Use favorite books for embedding if available
+    if (userId) {
+      const user = await User.findById(userId).populate({
+        path: 'favoriteBooks',
+        select: 'title description subjects genres gutenbergId',
+        options: { limit: 5 } // Limit to top 5 favorites for a focused embedding
+      });
+
+      if (user && user.favoriteBooks && user.favoriteBooks.length > 0) {
+        console.log(`📚 Found ${user.favoriteBooks.length} favorite books for user ${userId}`);
+        source = 'embeddings_favorite_books';
+        userFavoritedBookIds = user.favoriteBooks.map(book => book.gutenbergId).filter(id => id);
+
+        const combinedText = user.favoriteBooks.map(book => {
+          const genres = Array.isArray(book.genres) ? book.genres.join(', ') : '';
+          const subjects = Array.isArray(book.subjects) ? book.subjects.join(', ') : '';
+          return `${book.title}. ${book.description || ''} Genres: ${genres}. Subjects: ${subjects}.`;
+        }).join(" ");
+        
+        console.log('🔤 Combined favorite books text:', combinedText.substring(0, 200));
+        queryVector = await generateEmbedding(combinedText);
+      }
+    }
+
+    // Priority 2: Fallback to favorite genres
+    if (!queryVector && favoriteGenres && favoriteGenres.length > 0) {
+      console.log('📖 No favorite books with data, falling back to genres.');
+      source = 'embeddings_genres';
+      const combinedText = Array.isArray(favoriteGenres) ? favoriteGenres.join(" ") : String(favoriteGenres);
+      console.log('🔤 Combined query text:', combinedText.substring(0, 100));
+      queryVector = await generateEmbedding(combinedText);
+    }
     
-    console.log('🔤 Combined query text:', combinedText.substring(0, 100));
-    
-    // Generate embedding from user's favorite genres
-    const queryVector = await generateEmbedding(combinedText);
+    // If no data to generate a vector, return empty
+    if (!queryVector) {
+      console.log('⚠️ No favorite genres or books provided');
+      return { books: [], source: 'no_genres_or_favorites' };
+    }
+
     console.log(`✅ Generated embedding with ${queryVector.length} dimensions`);
-    
+
     // Search in Qdrant with the embedding
     console.log('🔍 Searching Qdrant for similar embeddings...');
     const searchResults = await qdrant.search("books_metadata", {
       vector: queryVector,
       limit: 100, // Get more results for filtering
       with_payload: true,
-      score_threshold: 0.2 // Adjust threshold as needed
+      score_threshold: 0.2, // Adjust threshold as needed
+      filter: {
+        must_not: [
+          // Exclude books the user has already favorited from recommendations
+          { key: "gutenbergId", match: { any: userFavoritedBookIds } }
+        ]
+      }
     });
 
     console.log(`📊 Found ${searchResults.length} results from Qdrant`);
@@ -45,7 +82,7 @@ const recommendBooks = async (favoriteGenres, limit = 20) => {
     
     // Extract and validate book IDs
     const validBookIds = [];
-    searchResults.forEach((result, index) => {
+    searchResults.forEach((result) => {
       const payload = result.payload || {};
       const bookId = payload.gutenbergId || payload.book_id || payload._id;
       
@@ -60,68 +97,52 @@ const recommendBooks = async (favoriteGenres, limit = 20) => {
     
     console.log(`📚 Extracted ${validBookIds.length} valid book IDs`);
     
-    // Separate gutenbergIds and MongoDB ObjectIds
-    const gutenbergIds = validBookIds
-      .filter(item => item.isGutenbergId)
-      .map(item => item.id);
-    
-    const mongoIds = validBookIds
-      .filter(item => !item.isGutenbergId)
-      .map(item => item.id);
+    const gutenbergIds = validBookIds.filter(item => item.isGutenbergId).map(item => item.id);
+    const mongoIds = validBookIds.filter(item => !item.isGutenbergId).map(item => item.id);
     
     console.log(`🔢 Gutenberg IDs: ${gutenbergIds.length}, MongoDB IDs: ${mongoIds.length}`);
     
     let books = [];
     
-    // Try to fetch books by gutenbergId first (most common)
     if (gutenbergIds.length > 0) {
       console.log('🔍 Searching books by gutenbergId...');
-      const booksByGutenberg = await Book.find({
-        gutenbergId: { $in: gutenbergIds }
-      })
-      .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description')
-      .limit(limit * 2);
-      
-      books = booksByGutenberg;
+      books = await Book.find({ gutenbergId: { $in: gutenbergIds } })
+        .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description')
+        .limit(limit * 2);
       console.log(`✅ Found ${books.length} books by gutenbergId`);
     }
     
-    // If not enough, try MongoDB ObjectIds
     if (books.length < limit && mongoIds.length > 0) {
       console.log('🔍 Searching books by MongoDB _id...');
-      const booksByMongoId = await Book.find({
-        _id: { $in: mongoIds }
-      })
-      .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description')
-      .limit(limit - books.length);
+      const booksByMongoId = await Book.find({ _id: { $in: mongoIds } })
+        .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description')
+        .limit(limit - books.length);
       
       books = [...books, ...booksByMongoId];
       console.log(`✅ Now have ${books.length} total books`);
     }
     
-    // Sort books by Qdrant similarity score (if possible)
+    // Sort books by Qdrant similarity score
     const sortedBooks = books.sort((a, b) => {
       const scoreA = validBookIds.find(item => 
-        item.id.toString() === a.gutenbergId?.toString() || 
-        item.id.toString() === a._id.toString()
+        (item.isGutenbergId && item.id.toString() === a.gutenbergId?.toString()) ||
+        (!item.isGutenbergId && item.id.toString() === a._id.toString())
       )?.score || 0;
       
       const scoreB = validBookIds.find(item => 
-        item.id.toString() === b.gutenbergId?.toString() || 
-        item.id.toString() === b._id.toString()
+        (item.isGutenbergId && item.id.toString() === b.gutenbergId?.toString()) ||
+        (!item.isGutenbergId && item.id.toString() === b._id.toString())
       )?.score || 0;
       
       return scoreB - scoreA;
     });
     
-    // Take only the requested limit
     const finalBooks = sortedBooks.slice(0, limit);
-    
-    console.log(`🎯 Returning ${finalBooks.length} books from embeddings`);
+    console.log(`🎯 Returning ${finalBooks.length} books from source: ${source}`);
     
     return { 
       books: finalBooks,
-      source: 'embeddings',
+      source: source,
       qdrantResults: searchResults.length,
       userGenres: favoriteGenres
     };

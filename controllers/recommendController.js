@@ -5,15 +5,9 @@ const Book = require('../models/Book');
 
 const getRecommendations = async (req, res) => {
   console.log('🤖 [CONTROLLER] getRecommendations called');
-  console.log('🔑 req.firebaseUid:', req.firebaseUid);
-  console.log('✅ req.isAuthenticated:', req.isAuthenticated);
-  console.log('👤 req.userData:', req.userData);
-  
-  const firebaseUid = req.firebaseUid;
   const { limit = 20 } = req.query;
 
   try {
-    // If user is not authenticated, return popular books
     if (!req.isAuthenticated || !req.userData) {
       console.log('👤 No authenticated user, returning popular books');
       const popularBooks = await Book.find()
@@ -30,63 +24,40 @@ const getRecommendations = async (req, res) => {
       });
     }
 
-    // Get user from middleware data
     const user = req.userData;
+    console.log('👤 User data for recommendations:', { id: user._id, displayName: user.displayName });
     
-    console.log('👤 User data for recommendations:', {
-      id: user._id,
-      displayName: user.displayName,
-      email: user.email,
-      readingPreferences: user.readingPreferences
-    });
-    
-    // Get user's favorite genres from reading preferences
-    let favoriteGenres = [];
-    
-    if (user.readingPreferences && user.readingPreferences.favoriteGenres) {
-      favoriteGenres = user.readingPreferences.favoriteGenres;
-    } else {
-      // Try fallback to legacy field
-      favoriteGenres = user.favoriteGenres || [];
-    }
-    
-    console.log('🎭 Favorite genres extracted:', {
-      genres: favoriteGenres,
-      count: favoriteGenres.length,
-      fromReadingPrefs: user.readingPreferences ? true : false
-    });
+    let favoriteGenres = user.readingPreferences?.favoriteGenres || user.favoriteGenres || [];
+    console.log('🎭 Favorite genres extracted:', { count: favoriteGenres.length });
     
     let recommendations = [];
-    let source = 'embeddings';
+    let source = 'init';
     let message = '';
-    
-    // If user has favorite genres, use embeddings AI
-    if (favoriteGenres && favoriteGenres.length > 0) {
-      console.log('🤖 Using AI embeddings with user genres...');
+
+    try {
+      console.log('🤖 Calling recommendBooks service...');
+      const result = await recommendBooks({
+        userId: user._id,
+        favoriteGenres,
+        limit: parseInt(limit)
+      });
       
-      try {
-        const result = await recommendBooks(favoriteGenres, parseInt(limit));
-        
-        if (result.books && result.books.length > 0) {
-          console.log(`✅ Found ${result.books.length} books via embeddings`);
-          recommendations = result.books;
-          source = result.source || 'embeddings';
-          message = 'AI-powered recommendations based on your preferences';
-        } else {
-          console.log('⚠️ Embeddings returned empty, falling back...');
-          throw new Error('No results from embeddings');
-        }
-      } catch (embeddingError) {
-        console.log('⚠️ Embedding service error:', embeddingError.message);
-        message = `Embedding service error: ${embeddingError.message}`;
-        // Continue to fallback
+      if (result.books && result.books.length > 0) {
+        console.log(`✅ Found ${result.books.length} books via recommendService (source: ${result.source})`);
+        recommendations = result.books;
+        source = result.source;
+        message = 'AI-powered recommendations for you';
+      } else {
+        console.log('⚠️ recommendService returned empty, falling back...');
+        source = result.source || 'empty_from_service';
       }
-    } else {
-      console.log('⚠️ User has no favorite genres');
-      message = 'No favorite genres found in your profile';
+    } catch (embeddingError) {
+      console.log('⚠️ recommendService error:', embeddingError.message);
+      message = `Recommendation service error: ${embeddingError.message}`;
+      source = 'service_error';
     }
     
-    // Fallback if no embeddings results
+    // Fallback if no recommendations were found
     if (recommendations.length === 0) {
       console.log('📊 Falling back to popular books...');
       const popularBooks = await Book.find()
@@ -95,13 +66,9 @@ const getRecommendations = async (req, res) => {
         .select('title author coverImageUrl gutenbergId downloadCount subjects genres generated_blurb description');
       
       recommendations = popularBooks;
-      source = favoriteGenres && favoriteGenres.length > 0 
-        ? 'popular_fallback' 
-        : 'popular_no_genres';
-      
-      message = favoriteGenres && favoriteGenres.length > 0
-        ? 'Using popular books (AI service unavailable)'
-        : 'Popular books (add favorite genres for personalized recommendations)';
+      // Keep the source to indicate why we fell back
+      source = source.includes('embeddings') ? 'popular_fallback' : 'popular_no_genres';
+      message = 'Here are some popular books to check out.';
     }
     
     console.log(`✅ Returning ${recommendations.length} books (source: ${source})`);
@@ -113,25 +80,34 @@ const getRecommendations = async (req, res) => {
       total: recommendations.length,
       source: source,
       userRegistered: true,
-      isPersonalized: source === 'embeddings',
+      isPersonalized: source.includes('embeddings'),
       message: message
     });
     
   } catch (error) {
     console.error('❌ Recommendation controller error:', error);
     
-    // Final fallback
-    const fallbackBooks = await Book.find()
-      .limit(Math.min(parseInt(limit), 20))
-      .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description');
-    
-    res.json({
-      success: true,
-      data: fallbackBooks,
-      source: 'error_fallback',
-      userRegistered: req.isAuthenticated || false,
-      message: 'Using fallback recommendations due to an error'
-    });
+    // Final fallback in case of a major error
+    try {
+      const fallbackBooks = await Book.find()
+        .limit(Math.min(parseInt(limit), 20))
+        .select('title author coverImageUrl gutenbergId subjects genres downloadCount');
+      
+      res.status(500).json({
+        success: false,
+        data: fallbackBooks,
+        source: 'error_fallback',
+        userRegistered: req.isAuthenticated || false,
+        message: 'Using fallback recommendations due to a server error.'
+      });
+    } catch (fallbackError) {
+      res.status(500).json({
+        success: false,
+        data: [],
+        source: 'fatal_error',
+        message: 'Could not retrieve any recommendations.'
+      });
+    }
   }
 };
 
