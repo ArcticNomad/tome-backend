@@ -1,74 +1,63 @@
 // backend/middleware/authMiddleware.js
 const admin = require('../config/firebaseAdmin');
-const User = require("../models/User"); 
 
 const verifyFirebaseToken = async (req, res, next) => {
   try {
-    // If Firebase admin is not initialized, skip auth
+    console.log('🔐 Auth middleware called');
+    console.log('Headers:', {
+      authorization: req.headers.authorization?.substring(0, 50) + '...'
+    });
+
+    // If no Firebase admin, skip auth for testing
     if (!admin) {
       console.log('⚠️ Firebase Admin not available - skipping auth');
-      req.firebaseUid = 'demo-user';
-      req.isAuthenticated = false;
+      req.user = {
+        uid: 'demo-user-' + Date.now(),
+        email: 'demo@example.com',
+        name: 'Demo User'
+      };
       return next();
     }
 
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
-      console.log('⚠️ No token provided');
-      req.firebaseUid = null;
-      req.isAuthenticated = false;
+      console.log('❌ No token provided');
+      req.user = null;
       return next();
     }
 
+    console.log('🔑 Verifying token...');
     const decodedToken = await admin.auth().verifyIdToken(token);
     
-    // Find existing user in DB
-    const user = await User.findOne({ firebaseUid: decodedToken.uid });
+    console.log('✅ Token verified for user:', decodedToken.uid);
+    console.log('User email:', decodedToken.email);
     
-    if (user) {
-      req.user = user;
-      req.firebaseUid = user.firebaseUid;
-      req.isAuthenticated = true;
-      console.log(`✅ Authenticated existing user: ${user.email || user.firebaseUid}`);
-    } else {
-      // User doesn't exist yet (hasn't completed signup)
-      req.firebaseUid = decodedToken.uid;
-      req.isAuthenticated = false; // Not fully registered
-      console.log(`⚠️ User authenticated but not registered in DB: ${decodedToken.uid}`);
-    }
+    // Set req.user with the decoded token data
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email || '',
+      name: decodedToken.name || '',
+      picture: decodedToken.picture || ''
+    };
+    
+    // Also set firebaseUid for compatibility
+    req.firebaseUid = decodedToken.uid;
     
     next();
   } catch (error) {
     console.error('❌ Token verification error:', error.message);
+    console.error('Error stack:', error.stack);
     
-    // For development only
-    req.firebaseUid = 'demo-user';
-    req.isAuthenticated = false;
+    // For development, allow demo user
+    console.log('⚠️ Using demo user due to auth error');
+    req.user = {
+      uid: 'demo-user-' + Date.now(),
+      email: 'demo@example.com',
+      name: 'Demo User'
+    };
     next();
   }
 };
 
 module.exports = { verifyFirebaseToken };
-
-const authFirebaseUid = (req, res, next) => {
-  const firebaseUid = req.headers.firebaseuid || req.user?.uid;
-  
-  if (!firebaseUid) {
-    console.log('⚠️ No firebaseUid found in headers or user - using demo');
-    req.firebaseUid = 'demo-user';
-  } else {
-    req.firebaseUid = firebaseUid;
-  }
-  next();
-};
-
-const getUserByFirebaseUid = async (firebaseUid) => {
-  return await AppUser.findOne({ firebaseUid });
-};
-
-module.exports = { 
-  verifyFirebaseToken, 
-  authFirebaseUid, 
-  getUserByFirebaseUid 
-};
