@@ -60,18 +60,24 @@ const recommendBooks = async ({ userId, favoriteGenres, limit = 20 }) => {
 
     // Search in Qdrant with the embedding
     console.log('🔍 Searching Qdrant for similar embeddings...');
-    const searchResults = await qdrant.search("books_metadata", {
+    const searchParams = {
       vector: queryVector,
       limit: 100, // Get more results for filtering
       with_payload: true,
       score_threshold: 0.2, // Adjust threshold as needed
-      filter: {
+    };
+
+    if (userFavoritedBookIds && userFavoritedBookIds.length > 0) {
+      searchParams.filter = {
         must_not: [
           // Exclude books the user has already favorited from recommendations
           { key: "gutenbergId", match: { any: userFavoritedBookIds } }
         ]
-      }
-    });
+      };
+      console.log(`🔍 Applying filter to exclude ${userFavoritedBookIds.length} favorited books.`);
+    }
+
+    const searchResults = await qdrant.search("books_metadata", searchParams);
 
     console.log(`📊 Found ${searchResults.length} results from Qdrant`);
     
