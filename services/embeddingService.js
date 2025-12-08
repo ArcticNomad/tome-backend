@@ -1,23 +1,35 @@
 // backend/services/embeddingService.js
-
 let embedder = null;
-let pipeline = null;
+
+const initializeEmbedder = async () => {
+  if (!embedder) {
+    try {
+      console.log("📥 Loading Xenova embedding model...");
+      const { pipeline } = await import("@xenova/transformers");
+      embedder = await pipeline("feature-extraction", "Xenova/all-mpnet-base-v2");
+      console.log("✅ Embedding model loaded successfully");
+    } catch (error) {
+      console.error("❌ Failed to load embedding model:", error);
+      throw error;
+    }
+  }
+  return embedder;
+};
 
 const generateEmbedding = async (text) => {
   try {
-    if (!embedder) {
-      console.log("📥 Loading Xenova embedding model...");
-      
-      // Use dynamic import for ES module
-      const transformers = await import("@xenova/transformers");
-      pipeline = transformers.pipeline;
-      
-      embedder = await pipeline("feature-extraction", "Xenova/all-mpnet-base-v2");
-      console.log("✅ Embedding model loaded successfully");
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      throw new Error('Invalid text for embedding');
     }
-
-    console.log(`🔤 Generating embedding for text: ${text.substring(0, 50)}...`);
-    const output = await embedder(text, { pooling: "mean", normalize: true });
+    
+    const model = await initializeEmbedder();
+    console.log(`🔤 Generating embedding for text: "${text.substring(0, 100)}..."`);
+    
+    const output = await model(text, { 
+      pooling: "mean", 
+      normalize: true 
+    });
+    
     const embedding = Array.from(output.data);
     console.log(`✅ Generated embedding with ${embedding.length} dimensions`);
     

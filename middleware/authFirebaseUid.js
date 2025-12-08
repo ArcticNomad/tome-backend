@@ -1,30 +1,57 @@
 // backend/middleware/authFirebaseUid.js
-const authFirebaseUid = (req, res, next) => {
-  console.log('🔍 authFirebaseUid middleware called for because-you-liked');
+const User = require('../models/User');
+
+const authFirebaseUid = async (req, res, next) => {
+  console.log('🔍 authFirebaseUid middleware called');
   
-  // Check multiple header locations
-  const firebaseUid = req.headers.firebaseuid || 
+  try {
+    // Check multiple header locations
+    const firebaseUid = req.headers.firebaseuid || 
                       req.headers['firebase-uid'] ||
                       req.headers['x-firebase-uid'] ||
-                      req.query.firebaseuid; // Also check query params
-  
-  console.log('Headers:', {
-    firebaseuid: req.headers.firebaseuid,
-    'firebase-uid': req.headers['firebase-uid'],
-    'x-firebase-uid': req.headers['x-firebase-uid']
-  });
-  
-  if (!firebaseUid) {
-    console.log('⚠️ No firebaseUid found - allowing with demo user');
+                      req.query.firebaseuid ||
+                      (req.user && req.user.uid);
+    
+    console.log('Headers checked:', {
+      firebaseuid: req.headers.firebaseuid,
+      'firebase-uid': req.headers['firebase-uid'],
+      'x-firebase-uid': req.headers['x-firebase-uid'],
+      userUid: req.user && req.user.uid
+    });
+    
+    if (!firebaseUid) {
+      console.log('⚠️ No firebaseUid found - allowing with demo user');
+      req.firebaseUid = 'demo-user';
+      req.isAuthenticated = false;
+      req.userData = null;
+      return next();
+    }
+    
+    // Fetch user from MongoDB
+    const user = await User.findOne({ firebaseUid })
+      .select('readingPreferences favoriteGenres displayName email firebaseUid');
+    
+    if (user) {
+      console.log(`✅ User found in MongoDB: ${user.displayName || user.email}`);
+      req.userData = user;
+      req.isAuthenticated = true;
+    } else {
+      console.log('⚠️ User not found in MongoDB');
+      req.isAuthenticated = false;
+      req.userData = null;
+    }
+    
+    req.firebaseUid = firebaseUid;
+    console.log(`✅ Firebase UID set: ${firebaseUid}, Authenticated: ${req.isAuthenticated}`);
+    
+    next();
+  } catch (error) {
+    console.error('❌ Error in authFirebaseUid middleware:', error);
     req.firebaseUid = 'demo-user';
-    req.isDemoUser = true;
-    return next();
+    req.isAuthenticated = false;
+    req.userData = null;
+    next();
   }
-  
-  req.firebaseUid = firebaseUid;
-  req.isDemoUser = false;
-  console.log(`✅ Firebase UID set: ${firebaseUid}`);
-  next();
 };
 
 module.exports = { authFirebaseUid };

@@ -1,96 +1,89 @@
 // backend/controllers/recommendController.js
-const { recommendBooks } = require('../services/embeddingService');
+const { recommendBooks } = require('../services/recommendService');
 const User = require('../models/User');
 const Book = require('../models/Book');
- const getRecommendations = async (req, res) => {
 
-
-   console.log('🤖 [EMBEDDINGS] Controller called');
+const getRecommendations = async (req, res) => {
+  console.log('🤖 [CONTROLLER] getRecommendations called');
   console.log('🔑 req.firebaseUid:', req.firebaseUid);
   console.log('✅ req.isAuthenticated:', req.isAuthenticated);
-  console.log('👤 req.user:', req.user);
-  console.log('📝 Full req object keys:', Object.keys(req));
+  console.log('👤 req.userData:', req.userData);
   
-  console.log('🤖 [EMBEDDINGS] Controller called');
   const firebaseUid = req.firebaseUid;
   const { limit = 20 } = req.query;
 
-  console.log('👤 User UID:', firebaseUid, 'Authenticated:', req.isAuthenticated);
-
   try {
-    // If no user or not registered, return popular books
-    if (!firebaseUid || !req.isAuthenticated) {
-      console.log('👤 No registered user, returning popular books');
+    // If user is not authenticated, return popular books
+    if (!req.isAuthenticated || !req.userData) {
+      console.log('👤 No authenticated user, returning popular books');
       const popularBooks = await Book.find()
         .sort({ downloadCount: -1 })
-        .limit(parseInt(limit) || 20)
-        .select('title author coverImageUrl gutenbergId downloadCount subjects generated_blurb');
+        .limit(parseInt(limit))
+        .select('title author coverImageUrl gutenbergId downloadCount subjects genres generated_blurb description');
       
       return res.json({
         success: true,
         data: popularBooks,
         source: 'popular_no_user',
-        message: 'Popular books (no registered user)',
+        message: 'Popular books (no authenticated user)',
         userRegistered: false
       });
     }
 
-    // User exists, fetch from DB
-    const user = await User.findOne({ firebaseUid });
+    // Get user from middleware data
+    const user = req.userData;
     
-    // In recommendController.js - Add this after finding the user
-if (user) {
-  console.log('👤 FULL USER OBJECT:', JSON.stringify(user, null, 2));
-  console.log('🎭 Reading preferences structure:', user.readingPreferences);
-  console.log('🎭 Favorite genres:', user.readingPreferences?.favoriteGenres);
-  console.log('🎭 Favorite genres type:', typeof user.readingPreferences?.favoriteGenres);
-  console.log('🎭 Favorite genres length:', user.readingPreferences?.favoriteGenres?.length || 0);
-  
-  // Check if readingPreferences exists and has favoriteGenres
-  if (!user.readingPreferences || !user.readingPreferences.favoriteGenres) {
-    console.log('⚠️ No favorite genres found in user profile');
-    console.log('🔧 Initializing reading preferences...');
+    console.log('👤 User data for recommendations:', {
+      id: user._id,
+      displayName: user.displayName,
+      email: user.email,
+      readingPreferences: user.readingPreferences
+    });
     
-    // Initialize reading preferences
-    if (!user.readingPreferences) {
-      user.readingPreferences = {};
-    }
-    if (!user.readingPreferences.favoriteGenres) {
-      user.readingPreferences.favoriteGenres = [];
+    // Get user's favorite genres from reading preferences
+    let favoriteGenres = [];
+    
+    if (user.readingPreferences && user.readingPreferences.favoriteGenres) {
+      favoriteGenres = user.readingPreferences.favoriteGenres;
+    } else {
+      // Try fallback to legacy field
+      favoriteGenres = user.favoriteGenres || [];
     }
     
-    // Save the updated user
-    await user.save();
-    console.log('✅ Updated user with empty favoriteGenres array');
-  }
-}
-
-    // Get user's favorite genres
-    const favoriteGenres = user.readingPreferences?.favoriteGenres || [];
-    console.log('🎭 User favorite genres:', favoriteGenres);
+    console.log('🎭 Favorite genres extracted:', {
+      genres: favoriteGenres,
+      count: favoriteGenres.length,
+      fromReadingPrefs: user.readingPreferences ? true : false
+    });
     
     let recommendations = [];
-    let source = 'embeddings_ai';
+    let source = 'embeddings';
+    let message = '';
     
     // If user has favorite genres, use embeddings AI
-    if (favoriteGenres.length > 0) {
-      console.log('🤖 Using AI embeddings for recommendations...');
+    if (favoriteGenres && favoriteGenres.length > 0) {
+      console.log('🤖 Using AI embeddings with user genres...');
       
       try {
-        const { books } = await recommendBooks(favoriteGenres, parseInt(limit) || 20);
+        const result = await recommendBooks(favoriteGenres, parseInt(limit));
         
-        if (books && books.length > 0) {
-          console.log(`✅ Found ${books.length} books via embeddings`);
-          recommendations = books;
-          source = 'embeddings_ai';
+        if (result.books && result.books.length > 0) {
+          console.log(`✅ Found ${result.books.length} books via embeddings`);
+          recommendations = result.books;
+          source = result.source || 'embeddings';
+          message = 'AI-powered recommendations based on your preferences';
         } else {
           console.log('⚠️ Embeddings returned empty, falling back...');
           throw new Error('No results from embeddings');
         }
       } catch (embeddingError) {
         console.log('⚠️ Embedding service error:', embeddingError.message);
-        // Fall through to backup
+        message = `Embedding service error: ${embeddingError.message}`;
+        // Continue to fallback
       }
+    } else {
+      console.log('⚠️ User has no favorite genres');
+      message = 'No favorite genres found in your profile';
     }
     
     // Fallback if no embeddings results
@@ -98,11 +91,17 @@ if (user) {
       console.log('📊 Falling back to popular books...');
       const popularBooks = await Book.find()
         .sort({ downloadCount: -1 })
-        .limit(parseInt(limit) || 20)
-        .select('title author coverImageUrl gutenbergId downloadCount subjects generated_blurb');
+        .limit(parseInt(limit))
+        .select('title author coverImageUrl gutenbergId downloadCount subjects genres generated_blurb description');
       
       recommendations = popularBooks;
-      source = favoriteGenres.length > 0 ? 'popular_fallback' : 'popular_no_genres';
+      source = favoriteGenres && favoriteGenres.length > 0 
+        ? 'popular_fallback' 
+        : 'popular_no_genres';
+      
+      message = favoriteGenres && favoriteGenres.length > 0
+        ? 'Using popular books (AI service unavailable)'
+        : 'Popular books (add favorite genres for personalized recommendations)';
     }
     
     console.log(`✅ Returning ${recommendations.length} books (source: ${source})`);
@@ -114,22 +113,24 @@ if (user) {
       total: recommendations.length,
       source: source,
       userRegistered: true,
-      message: 'AI-powered recommendations loaded successfully'
+      isPersonalized: source === 'embeddings',
+      message: message
     });
     
   } catch (error) {
-    console.error('❌ Recommendation error:', error);
+    console.error('❌ Recommendation controller error:', error);
     
+    // Final fallback
     const fallbackBooks = await Book.find()
-      .limit(parseInt(limit) || 20)
-      .select('title author coverImageUrl gutenbergId subjects downloadCount generated_blurb');
+      .limit(Math.min(parseInt(limit), 20))
+      .select('title author coverImageUrl gutenbergId subjects genres downloadCount generated_blurb description');
     
     res.json({
       success: true,
       data: fallbackBooks,
       source: 'error_fallback',
       userRegistered: req.isAuthenticated || false,
-      message: 'Using fallback recommendations'
+      message: 'Using fallback recommendations due to an error'
     });
   }
 };
