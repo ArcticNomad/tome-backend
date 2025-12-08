@@ -1,23 +1,17 @@
-// backend/controllers/recommendController.js - Update to accept limit parameter
-const { getUserByFirebaseUid } = require("../services/userService");
-const { recommendBooks } = require("../services/recommendService");
+// backend/controllers/recommendController.js
 const Book = require('../models/Book');
 
-/**
- * GET /api/books/similar-recommendations
- * Returns book recommendations based on user's favorite genres using AI embeddings
- */
 const getRecommendations = async (req, res) => {
   console.log('🤖 [EMBEDDINGS] Controller called');
   const firebaseUid = req.firebaseUid;
-  const { limit = 20 } = req.query; // Get limit from query params, default to 20
-  
-  console.log('👤 User UID:', firebaseUid, 'Limit requested:', limit);
-  
+  const { limit = 20 } = req.query;
+
+  console.log('👤 User UID:', firebaseUid, 'Authenticated:', req.isAuthenticated);
+
   try {
-    // If no user, return popular books
-    if (!firebaseUid) {
-      console.log('👤 No user, returning popular books');
+    // If no user or not registered, return popular books
+    if (!firebaseUid || !req.isAuthenticated) {
+      console.log('👤 No registered user, returning popular books');
       const popularBooks = await Book.find()
         .sort({ downloadCount: -1 })
         .limit(parseInt(limit) || 20)
@@ -27,16 +21,16 @@ const getRecommendations = async (req, res) => {
         success: true,
         data: popularBooks,
         source: 'popular_no_user',
-        message: 'Popular books (no user logged in)',
-        limit: popularBooks.length
+        message: 'Popular books (no registered user)',
+        userRegistered: false
       });
     }
 
-    // Fetch user from MongoDB
-    const user = await getUserByFirebaseUid(firebaseUid);
+    // User exists, fetch from DB
+    const user = await User.findOne({ firebaseUid });
     
     if (!user) {
-      console.log('❌ User not found in database');
+      console.log('❌ User not found in database (should not happen)');
       const popularBooks = await Book.find()
         .sort({ downloadCount: -1 })
         .limit(parseInt(limit) || 20)
@@ -47,12 +41,12 @@ const getRecommendations = async (req, res) => {
         data: popularBooks,
         source: 'popular_user_not_in_db',
         message: 'User profile not found, showing popular books',
-        limit: popularBooks.length
+        userRegistered: false
       });
     }
 
     // Get user's favorite genres
-    const favoriteGenres = user.favoriteGenres || user.readingPreferences?.favoriteGenres || [];
+    const favoriteGenres = user.readingPreferences?.favoriteGenres || [];
     console.log('🎭 User favorite genres:', favoriteGenres);
     
     let recommendations = [];
@@ -69,12 +63,6 @@ const getRecommendations = async (req, res) => {
           console.log(`✅ Found ${books.length} books via embeddings`);
           recommendations = books;
           source = 'embeddings_ai';
-          
-          // Log what we found
-          console.log('📚 Sample books returned:');
-          books.slice(0, 5).forEach((book, i) => {
-            console.log(`   ${i + 1}. ${book.title} by ${book.author || 'Unknown'} (ID: ${book.gutenbergId})`);
-          });
         } else {
           console.log('⚠️ Embeddings returned empty, falling back...');
           throw new Error('No results from embeddings');
@@ -104,8 +92,8 @@ const getRecommendations = async (req, res) => {
       data: recommendations,
       userGenres: favoriteGenres,
       total: recommendations.length,
-      limit: recommendations.length,
       source: source,
+      userRegistered: true,
       message: 'AI-powered recommendations loaded successfully'
     });
     
@@ -119,11 +107,9 @@ const getRecommendations = async (req, res) => {
     res.json({
       success: true,
       data: fallbackBooks,
-      userGenres: [],
       source: 'error_fallback',
+      userRegistered: req.isAuthenticated || false,
       message: 'Using fallback recommendations'
     });
   }
 };
-
-module.exports = { getRecommendations };

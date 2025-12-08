@@ -1,73 +1,55 @@
 // backend/middleware/authMiddleware.js
 const admin = require('../config/firebaseAdmin');
-const AppUser = require("../models/AppUser");
+const User = require("../models/User"); 
 
 const verifyFirebaseToken = async (req, res, next) => {
   try {
     // If Firebase admin is not initialized, skip auth
     if (!admin) {
       console.log('⚠️ Firebase Admin not available - skipping auth');
-      req.user = { 
-        uid: 'demo-user', 
-        email: 'demo@example.com',
-        firebaseUid: 'demo-user'
-      };
       req.firebaseUid = 'demo-user';
+      req.isAuthenticated = false;
       return next();
     }
 
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
-      console.log('⚠️ No token provided - using demo user');
-      req.user = { 
-        uid: 'demo-user', 
-        email: 'demo@example.com',
-        firebaseUid: 'demo-user'
-      };
-      req.firebaseUid = 'demo-user';
+      console.log('⚠️ No token provided');
+      req.firebaseUid = null;
+      req.isAuthenticated = false;
       return next();
     }
 
     const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
-    req.firebaseUid = decodedToken.uid;
     
-    // Try to find or create AppUser
-    try {
-      let appUser = await AppUser.findOne({ firebaseUid: decodedToken.uid });
-      if (!appUser) {
-        appUser = new AppUser({
-          firebaseUid: decodedToken.uid,
-          email: decodedToken.email || '',
-          displayName: decodedToken.name || '',
-          photoURL: decodedToken.picture || '',
-          createdAt: new Date()
-        });
-        await appUser.save();
-        console.log(`✅ Created new AppUser for ${decodedToken.uid}`);
-      }
-      req.appUser = appUser;
-    } catch (dbError) {
-      console.error('❌ Error accessing AppUser database:', dbError.message);
+    // Find existing user in DB
+    const user = await User.findOne({ firebaseUid: decodedToken.uid });
+    
+    if (user) {
+      req.user = user;
+      req.firebaseUid = user.firebaseUid;
+      req.isAuthenticated = true;
+      console.log(`✅ Authenticated existing user: ${user.email || user.firebaseUid}`);
+    } else {
+      // User doesn't exist yet (hasn't completed signup)
+      req.firebaseUid = decodedToken.uid;
+      req.isAuthenticated = false; // Not fully registered
+      console.log(`⚠️ User authenticated but not registered in DB: ${decodedToken.uid}`);
     }
     
-    console.log(`✅ Authenticated user: ${decodedToken.email || decodedToken.uid}`);
     next();
   } catch (error) {
     console.error('❌ Token verification error:', error.message);
     
-    // For development, allow demo user
-    console.log('⚠️ Using demo user due to auth error');
-    req.user = { 
-      uid: 'demo-user', 
-      email: 'demo@example.com',
-      firebaseUid: 'demo-user'
-    };
+    // For development only
     req.firebaseUid = 'demo-user';
+    req.isAuthenticated = false;
     next();
   }
 };
+
+module.exports = { verifyFirebaseToken };
 
 const authFirebaseUid = (req, res, next) => {
   const firebaseUid = req.headers.firebaseuid || req.user?.uid;
