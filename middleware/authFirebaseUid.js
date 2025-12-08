@@ -1,33 +1,23 @@
 // backend/middleware/authFirebaseUid.js
-const AppUser = require("../models/AppUser");
-
 const authFirebaseUid = (req, res, next) => {
-  console.log('🔍 authFirebaseUid middleware called');
+  console.log('🔍 authFirebaseUid middleware called for because-you-liked');
   
-  // Try multiple header names
+  // Check multiple header locations
   const firebaseUid = req.headers.firebaseuid || 
-                      req.headers['firebase-uid'] || 
+                      req.headers['firebase-uid'] ||
                       req.headers['x-firebase-uid'] ||
-                      req.headers.authorization?.split(' ')[1]; // Could be in Bearer token
+                      req.query.firebaseuid; // Also check query params
   
-  console.log('Headers received:', {
+  console.log('Headers:', {
     firebaseuid: req.headers.firebaseuid,
     'firebase-uid': req.headers['firebase-uid'],
-    'x-firebase-uid': req.headers['x-firebase-uid'],
-    authorization: req.headers.authorization ? 'Present' : 'Missing'
+    'x-firebase-uid': req.headers['x-firebase-uid']
   });
   
   if (!firebaseUid) {
-    console.log('⚠️ No firebaseUid found in headers - allowing with demo user');
-    
-    // For recommendations, we can proceed with demo user
-    // Or check if this is a public endpoint that should work without auth
+    console.log('⚠️ No firebaseUid found - allowing with demo user');
     req.firebaseUid = 'demo-user';
     req.isDemoUser = true;
-    
-    // Don't return 400 - just proceed with demo user
-    // return res.status(400).json({ message: "firebaseUid header missing" });
-    
     return next();
   }
   
@@ -37,19 +27,4 @@ const authFirebaseUid = (req, res, next) => {
   next();
 };
 
-const getUserByFirebaseUid = async (firebaseUid) => {
-  // Skip database lookup for demo user
-  if (firebaseUid === 'demo-user') {
-    return {
-      _id: 'demo-user-id',
-      firebaseUid: 'demo-user',
-      email: 'demo@example.com',
-      favoriteGenres: ['Fiction', 'Fantasy', 'Mystery'],
-      readingHistory: []
-    };
-  }
-  
-  return await AppUser.findOne({ firebaseUid });
-};
-
-module.exports = { authFirebaseUid, getUserByFirebaseUid };
+module.exports = { authFirebaseUid };
