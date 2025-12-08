@@ -1,5 +1,5 @@
 // backend/controllers/recommendController.js
-import { recommendBooks } from '../services/embeddingService';
+const { recommendBooks } = require('../services/embeddingService');
 const User = require('../models/User');
 const Book = require('../models/Book');
  const getRecommendations = async (req, res) => {
