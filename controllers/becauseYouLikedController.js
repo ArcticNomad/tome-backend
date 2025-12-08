@@ -3,7 +3,17 @@ const { getBecauseYouLikedRecommendations } = require('../services/userBookServi
 const Book = require('../models/Book');
 
 const getBecauseYouLiked = async (req, res) => {
-  console.log('🎬 [BECAUSE YOU LIKED] Controller called');
+
+   console.log('========================================');
+  console.log('🎯 [BECAUSE-YOU-LIKED] ENDPOINT HIT!');
+  console.log('📋 Full URL:', req.originalUrl);
+  console.log('📋 Path:', req.path);
+  console.log('📋 Query params:', req.query);
+  console.log('🔑 Firebase UID:', req.firebaseUid);
+  console.log('✅ Is authenticated:', req.isAuthenticated);
+  console.log('👤 User data:', req.userData);
+  console.log('========================================');
+  
   const firebaseUid = req.firebaseUid;
   const { limit = 10 } = req.query;
   
