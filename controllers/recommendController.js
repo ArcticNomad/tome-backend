@@ -38,21 +38,32 @@ const Book = require('../models/Book');
     // User exists, fetch from DB
     const user = await User.findOne({ firebaseUid });
     
-    if (!user) {
-      console.log('❌ User not found in database (should not happen)');
-      const popularBooks = await Book.find()
-        .sort({ downloadCount: -1 })
-        .limit(parseInt(limit) || 20)
-        .select('title author coverImageUrl gutenbergId downloadCount subjects generated_blurb');
-      
-      return res.json({
-        success: true,
-        data: popularBooks,
-        source: 'popular_user_not_in_db',
-        message: 'User profile not found, showing popular books',
-        userRegistered: false
-      });
+    // In recommendController.js - Add this after finding the user
+if (user) {
+  console.log('👤 FULL USER OBJECT:', JSON.stringify(user, null, 2));
+  console.log('🎭 Reading preferences structure:', user.readingPreferences);
+  console.log('🎭 Favorite genres:', user.readingPreferences?.favoriteGenres);
+  console.log('🎭 Favorite genres type:', typeof user.readingPreferences?.favoriteGenres);
+  console.log('🎭 Favorite genres length:', user.readingPreferences?.favoriteGenres?.length || 0);
+  
+  // Check if readingPreferences exists and has favoriteGenres
+  if (!user.readingPreferences || !user.readingPreferences.favoriteGenres) {
+    console.log('⚠️ No favorite genres found in user profile');
+    console.log('🔧 Initializing reading preferences...');
+    
+    // Initialize reading preferences
+    if (!user.readingPreferences) {
+      user.readingPreferences = {};
     }
+    if (!user.readingPreferences.favoriteGenres) {
+      user.readingPreferences.favoriteGenres = [];
+    }
+    
+    // Save the updated user
+    await user.save();
+    console.log('✅ Updated user with empty favoriteGenres array');
+  }
+}
 
     // Get user's favorite genres
     const favoriteGenres = user.readingPreferences?.favoriteGenres || [];
