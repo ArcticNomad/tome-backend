@@ -1,13 +1,15 @@
-// backend/controllers/searchController.js - FIXED CACHE WITH PAGINATION
+// backend/controllers/searchController.js - FIXED WITH ES MODULE COMPATIBILITY
 const { qdrant } = require("../config/qdrantConfig");
 const Book = require("../models/Book");
-const { pipeline } = require("@xenova/transformers");
+// REMOVED: const { pipeline } = require("@xenova/transformers"); // This causes the error
 
 let embedder = null;
 
 const loadEmbedder = async () => {
   if (!embedder) {
     console.log('🤖 Loading embedding model...');
+    // Use dynamic import for ES module compatibility
+    const { pipeline } = await import('@xenova/transformers');
     embedder = await pipeline('feature-extraction', 'Xenova/all-mpnet-base-v2');
     console.log('✅ Embedding model loaded');
   }
@@ -25,7 +27,6 @@ const semanticCache = new Map();
 const CACHE_TTL = 30000; // 30 seconds
 
 // Get paginated semantic results for a query
-// backend/controllers/searchController.js - FIXED getSemanticResults
 const getSemanticResults = async (query, page = 1, limit = 24) => {
   const cacheKey = `${query.toLowerCase()}_${page}_${limit}`;
   
@@ -54,7 +55,7 @@ const getSemanticResults = async (query, page = 1, limit = 24) => {
       with_vector: false
     });
 
-    // FIX: Get ALL results for accurate total count (but with payload to extract IDs)
+    // Get ALL results for accurate total count (but with payload to extract IDs)
     const totalResultsResponse = await qdrant.search("books_metadata", {
       vector: queryEmbedding,
       limit: 1000, // Increase limit for better total estimation
@@ -79,7 +80,7 @@ const getSemanticResults = async (query, page = 1, limit = 24) => {
       }
     });
 
-    // FIX: Calculate total unique books from ALL semantic results
+    // Calculate total unique books from ALL semantic results
     const allSeenIds = new Set();
     totalResultsResponse.forEach(result => {
       if (result.payload?.book_id) {
@@ -113,6 +114,7 @@ const getSemanticResults = async (query, page = 1, limit = 24) => {
     return { items: [], total: 0, page: page, limit: limit };
   }
 };
+
 const hybridSearch = async (req, res) => {
   try {
     const { query, limit = 24, page = 1 } = req.query;
@@ -226,14 +228,12 @@ const hybridSearch = async (req, res) => {
     console.log(`🎯 Page ${pageNum}: ${combinedBooks.length} combined books`);
 
     // 5. CALCULATE ACCURATE TOTAL COUNT (combination of both sources)
-    // This is approximate but good enough for pagination
-   // In hybridSearch function, replace the total calculation section:
-// 5. CALCULATE ACCURATE TOTAL COUNT (combination of both sources)
-const estimatedTotal = Math.max(keywordTotal, semanticTotal);
-const totalBooks = estimatedTotal > 0 ? estimatedTotal : 0;
-const totalPages = totalBooks > 0 ? Math.ceil(totalBooks / limitNum) : 1;
+    const estimatedTotal = Math.max(keywordTotal, semanticTotal);
+    const totalBooks = estimatedTotal > 0 ? estimatedTotal : 0;
+    const totalPages = totalBooks > 0 ? Math.ceil(totalBooks / limitNum) : 1;
 
-console.log(`📊 Total books: ${totalBooks} (keyword: ${keywordTotal}, semantic: ${semanticTotal})`);
+    console.log(`📊 Total books: ${totalBooks} (keyword: ${keywordTotal}, semantic: ${semanticTotal})`);
+    
     // 6. Clean internal fields
     const cleanBooks = combinedBooks.map(({ 
       _semanticScore, 
@@ -433,6 +433,7 @@ const clearSemanticCache = async (req, res) => {
     message: 'Semantic search cache cleared' 
   });
 };
+
 module.exports = {
   hybridSearch,
   simpleSearch,
