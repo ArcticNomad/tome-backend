@@ -7,25 +7,35 @@
   const app = express();
 
   // CORS Configuration - FIXED
-  app.use(cors({
-    origin: [
-      'http://localhost:5173', // Vite default
-      'http://localhost:3000', // Create React App default
-      'http://127.0.0.1:5173',
-      'https://your-vercel-app.vercel.app' // Your production frontend
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'X-Requested-With',
-      'firebaseuid',  // ADD THIS LINE - lowercase
-      'firebaseUid',  // ADD THIS LINE - camelCase (for consistency)
-      'X-Firebase-Uid' // ADD THIS LINE - with dash
-    ]
-  }));
+ // In your Railway backend server.js - UPDATE THIS:
 
+// REPLACE your current CORS config with this:
+
+
+// Enable CORS for all origins
+app.use(cors({
+  origin: [
+    'https://tome-frontend-arc.vercel.app', // Your Vercel frontend
+    'http://localhost:5173',                 // Local dev
+    'http://localhost:3000'                  // Alternative local
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'firebaseuid',
+    'firebaseUid',
+    'X-Firebase-Uid'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+}));
+
+// Add OPTIONS handler for preflight requests
+app.options('*', cors()); // Enable pre-flight for all routes
   // Alternative: Allow all origins (for development only)
   // app.use(cors());
 
