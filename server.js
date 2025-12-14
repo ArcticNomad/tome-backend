@@ -3,7 +3,7 @@
   const mongoose = require('mongoose');
   const cors = require('cors');
   require('dotenv').config();
-
+const authRoutes = require('./routes/authRoutes');
   const app = express();
 
 
@@ -41,6 +41,7 @@ app.options('*', cors()); // Enable pre-flight for all routes
   app.use('/api/books', require('./routes/bookRoutes'));
   app.use('/api/users', require('./routes/userRoutes'));
   app.use('/api/reviews',require('./routes/reviewRoutes'))
+  app.use('/api', authRoutes);
   const searchRoutes = require('./routes/search');
   app.use('/api/search', searchRoutes);
 
