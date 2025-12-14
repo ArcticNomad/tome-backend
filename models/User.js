@@ -53,7 +53,8 @@ const personalDetailsSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['male', 'female'],
-    default: ''
+    default: undefined, 
+      required: false
   },
   birthDate: Date,
   location: {
@@ -207,7 +208,7 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   
-  // NE
+  // 
   personalDetails: {
     type: personalDetailsSchema,
     default: () => ({})
@@ -299,8 +300,7 @@ userSchema.index({ 'readingStats.readingStreak': -1 });
 // Helper method to update reading streak
 userSchema.methods.updateReadingStreak = function() {
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+ 
   
   // Check if user read yesterday
   if (this.readingStats.lastReadingDate) {
@@ -356,7 +356,7 @@ userSchema.methods.addToBookshelf = function(bookId, shelfType, gutenbergId = nu
   return this.save();
 };
 
-// NEW: Helper method to update reading activity and streak
+//  Helper method to update reading activity and streak
 userSchema.methods.updateReadingActivity = function() {
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
