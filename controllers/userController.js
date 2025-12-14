@@ -6,15 +6,20 @@
 
   // Create user profile (after Firebase signup)
   // backend/controllers/userController.js → REPLACE createUserProfile
-// backend/controllers/userController.js - UPDATE createUserProfile function
+// backend/controllers/userController.js - UPDATE createUserProfile with detailed logging
 
 const createUserProfile = async (req, res) => {
   try {
-    // Get data from request body (sent by Flutter)
+    console.log('🚨🚨🚨 CREATE USER PROFILE CALLED 🚨🚨🚨');
+    console.log('📦 Full request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔐 Headers:', req.headers);
+    console.log('👤 Auth user:', req.user);
+    console.log('🔑 Firebase UID from headers:', req.headers['firebase-uid']);
+
     const {
       displayName,
       email,
-      firebaseUid,  // This should come from request body
+      firebaseUid,
       gender,
       birthDate,
       location,
@@ -23,9 +28,16 @@ const createUserProfile = async (req, res) => {
       favoriteBook
     } = req.body;
 
-    console.log('📝 Creating profile for firebaseUid:', firebaseUid);
-    console.log('📧 Email:', email);
-    console.log('👤 Display Name:', displayName);
+    console.log('📝 Parsed data:');
+    console.log('  - displayName:', displayName);
+    console.log('  - email:', email);
+    console.log('  - firebaseUid:', firebaseUid);
+    console.log('  - gender:', gender, '(type:', typeof gender, ')');
+    console.log('  - birthDate:', birthDate);
+    console.log('  - location:', location);
+    console.log('  - favoriteGenres:', favoriteGenres);
+    console.log('  - readingGoal:', readingGoal);
+    console.log('  - favoriteBook:', favoriteBook);
 
     // Check if profile already exists
     const existingUser = await User.findOne({ firebaseUid });
@@ -37,56 +49,51 @@ const createUserProfile = async (req, res) => {
       });
     }
 
-    // Parse location string
-    let city = '';
-    let country = '';
-    if (location) {
-      const parts = location.split(',').map(s => s.trim());
-      city = parts[0] || '';
-      country = parts[1] || parts[0] || '';
+    // Try creating user step by step to see where it fails
+    console.log('🔄 Creating user object...');
+    
+    const userData = {
+      firebaseUid: firebaseUid || req.user?.uid || req.headers['firebase-uid'],
+      email: email || req.user?.email || '',
+      displayName: displayName || email?.split('@')[0] || 'User',
+    };
+
+    console.log('📦 Basic user data:', userData);
+
+    // Try creating without personalDetails first
+    const testUser = new User(userData);
+    
+    console.log('🧪 Testing user creation...');
+    
+    // Validate without saving
+    const validationError = testUser.validateSync();
+    if (validationError) {
+      console.log('❌ Validation error:', validationError.errors);
+      throw validationError;
     }
 
-    // Create new user
-    const user = new User({
-      firebaseUid,
-      email: email || '',  // Make sure email is not undefined
-      displayName: displayName || email?.split('@')[0] || 'User',
+    console.log('✅ Basic validation passed');
 
-      personalDetails: {
-        gender: gender || null,
-        birthDate: birthDate ? new Date(birthDate) : null,
-        location: { city, country },
-        profilePicture: null,
-        bio: ''
-      },
+    // Now add personalDetails
+    userData.personalDetails = {
+      gender: gender || null,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      location: location ? {
+        city: location.split(',')[0]?.trim() || '',
+        country: location.split(',')[1]?.trim() || location.split(',')[0]?.trim() || ''
+      } : { city: '', country: '' },
+      profilePicture: null,
+      bio: ''
+    };
 
-      readingPreferences: {
-        favoriteGenres: favoriteGenres || [],
-        readingGoal: readingGoal || 'casual',
-        favoriteBook: favoriteBook || null
-      },
+    console.log('📦 User data with personalDetails:', JSON.stringify(userData, null, 2));
 
-      // Initialize with defaults
-      readingStats: {
-        booksRead: 0,
-        pagesRead: 0,
-        readingStreak: 0,
-        currentStreak: 0,
-        totalReadingTime: 0,
-        averageRating: 0,
-        reviewsWritten: 0
-      },
-      bookshelves: { 
-        currentlyReading: [], 
-        wantToRead: [], 
-        read: [] 
-      },
-      social: {}
-    });
-
+    const user = new User(userData);
+    
+    console.log('💾 Saving user to database...');
     await user.save();
     
-    console.log('✅ MongoDB profile created for:', firebaseUid);
+    console.log('✅ MongoDB profile created successfully for:', firebaseUid);
 
     res.status(201).json({
       success: true,
@@ -95,14 +102,26 @@ const createUserProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Create profile error:', error);
-    console.error('❌ Error stack:', error.stack);
-    console.error('❌ Request body:', req.body);
+    console.error('❌❌❌ FATAL ERROR in createUserProfile ❌❌❌');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     
+    if (error.errors) {
+      console.error('Validation errors:');
+      Object.keys(error.errors).forEach(key => {
+        console.error(`  - ${key}:`, error.errors[key]);
+      });
+    }
+    
+    console.error('Request body was:', req.body);
+    console.error('User model schema:', User.schema && User.schema.obj ? 'Schema exists' : 'No schema found');
+
     res.status(500).json({
       success: false,
       message: 'Failed to create profile',
-      error: error.message
+      error: error.message,
+      details: error.errors
     });
   }
 };
