@@ -2,11 +2,10 @@
 const Review = require('../models/Review');
 const Book = require('../models/Book');
 
-// Get reviews for a book
-// Get reviews for a book
+
 const getBookReviews = async (req, res) => {
   try {
-    const { bookId } = req.params; // String gutenbergId
+    const { bookId } = req.params; 
     const { 
       page = 1, 
       limit = 10, 
@@ -16,14 +15,14 @@ const getBookReviews = async (req, res) => {
 
     console.log(`📝 Getting reviews for book: ${bookId}`);
 
-    // Build query with string bookId
+  
     let query = { bookId: bookId };
     
     if (minRating) {
       query.rating = { $gte: parseInt(minRating) };
     }
 
-    // Sort options (keep as is)
+    // Sort options 
     const sortOptions = {};
     if (sortBy === 'helpful') {
       sortOptions.likes = -1;
@@ -91,7 +90,7 @@ const getBookReviews = async (req, res) => {
     });
   }
 };
-// Create a new review
+
 // Create a new review
 const createReview = async (req, res) => {
   try {

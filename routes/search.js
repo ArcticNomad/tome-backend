@@ -19,10 +19,10 @@ router.get('/simple', simpleSearch);
 // Quick search for autocomplete/suggestions
 router.get('/quick', quickSearch);
 
-// Cache management - CORRECTED function name
-router.delete('/cache', clearSemanticCache);  // Changed from clearCache
 
-// Health check
+router.delete('/cache', clearSemanticCache); 
+
+
 router.get('/health', (req, res) => {
   res.json({
     success: true,

@@ -23,7 +23,7 @@ const {
 const { trackDailyActivity } = require('../middleware/activityMiddleware');
 const router = express.Router();
 
-// PUBLIC ROUTES (no auth required)
+
 router.get('/test', (req, res) => {
   console.log('✅ Test route hit!');
   res.json({ message: 'User routes are working!' });
@@ -42,14 +42,14 @@ router.post('/profile/create-test', (req, res) => {
 router.get('/profile/check-availability', checkAvailability);
 
 // ========== PROTECTED ROUTES ==========
-// Apply both auth and activity tracking middleware
+
 const protectedRoute = [verifyFirebaseToken, trackDailyActivity];
 
 // ========== PROFILE ROUTES ==========
 router.post('/profile/create', protectedRoute, createUserProfile);
 router.get('/profile', protectedRoute, getUserProfile);
 router.put('/profile', protectedRoute, updateUserProfile);
-// Add this with your other routes in users.js
+
 router.get('/reviews', protectedRoute, getUserReviews);
 
 // ========== BOOKSHELF ROUTES ==========

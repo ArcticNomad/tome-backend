@@ -23,8 +23,8 @@ const { getBecauseYouLiked } = require("../controllers/becauseYouLikedController
 
 const router = express.Router();
 
-// ========== SPECIFIC ROUTES FIRST ==========
-// These need to come BEFORE the /:id route!
+
+
 
 // Recommendation routes (require auth)
 router.get('/similar-recommendations', authFirebaseUid, getRecommendations);
@@ -42,11 +42,11 @@ router.get('/community/reviews', getHighlyReviewedBooks);
 router.get('/stats/homepage', getHomepageStats);
 
 // ========== BOOK DETAIL ROUTES ==========
-// These come LAST because they use wildcards (:id)
+
 router.get('/:id/full', getBookWithFullText);
 router.get('/:id/text-url', getFullTextUrl);
 router.get('/:id/content', getBookContent);
 router.get('/:id/related', getRelatedBooks);
-router.get('/:id', getBookById); // THIS MUST BE LAST!
+router.get('/:id', getBookById);
 
 module.exports = router;

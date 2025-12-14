@@ -1,7 +1,7 @@
 // backend/models/User.js
 const mongoose = require('mongoose');
 
-// --- Sub-schemas ---
+
 
 const readingProgressSchema = new mongoose.Schema({
   bookId: {
@@ -49,7 +49,6 @@ const bookmarkSchema = new mongoose.Schema({
   }
 });
 
-// NEW: Personal Details Schema
 const personalDetailsSchema = new mongoose.Schema({
   gender: {
     type: String,
@@ -62,10 +61,10 @@ const personalDetailsSchema = new mongoose.Schema({
     country: String
   },
   profilePicture: String, // URL to stored image
-  bio: String // Short bio/introduction
+  bio: String 
 });
 
-// NEW: Reading Preferences Schema
+
 const readingPreferencesSchema = new mongoose.Schema({
   favoriteGenres: [{
     type: String,
@@ -90,7 +89,7 @@ const readingPreferencesSchema = new mongoose.Schema({
   favoriteAuthor: String
 });
 
-// NEW: Reading Statistics Schema
+
 const readingStatsSchema = new mongoose.Schema({
   booksRead: {
     type: Number,
@@ -125,7 +124,6 @@ const readingStatsSchema = new mongoose.Schema({
   lastReadingDate: Date
 });
 
-// NEW: Bookshelves Schema
 const bookshelvesSchema = new mongoose.Schema({
   currentlyReading: [{
     bookId: {
@@ -171,7 +169,7 @@ const bookshelvesSchema = new mongoose.Schema({
   }]
 });
 
-// NEW: Social Schema (simplified - no premium)
+
 const socialSchema = new mongoose.Schema({
   friendsCount: {
     type: Number,
@@ -187,7 +185,7 @@ const socialSchema = new mongoose.Schema({
   }
 });
 
-// --- Main User Schema ---
+// Main User Schema 
 const userSchema = new mongoose.Schema({
   // Firebase Authentication
   firebaseUid: {
@@ -209,7 +207,7 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   
-  // NEW: Profile Information (from signup flow)
+  // NE
   personalDetails: {
     type: personalDetailsSchema,
     default: () => ({})
@@ -235,7 +233,6 @@ const userSchema = new mongoose.Schema({
     default: () => ({})
   },
   
-  // Existing fields (keeping for backward compatibility)
   preferences: {
     theme: { 
       type: String, 
@@ -259,15 +256,14 @@ const userSchema = new mongoose.Schema({
     }
   },
   
-  // Existing fields
+
   readingHistory: [readingProgressSchema],
   bookmarks: [bookmarkSchema],
   favoriteBooks: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Book'
   }],
-  
-  // Metadata
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -286,10 +282,10 @@ const userSchema = new mongoose.Schema({
     default: 'active'
   }
 }, {
-  timestamps: true // Automatically adds createdAt and updatedAt
+  timestamps: true 
 });
 
-// Indexes for better performance
+
 userSchema.index({ email: 1 });
 userSchema.index({ firebaseUid: 1 });
 userSchema.index({ displayName: 1 });

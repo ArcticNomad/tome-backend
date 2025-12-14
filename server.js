@@ -6,11 +6,6 @@
 
   const app = express();
 
-  // CORS Configuration - FIXED
- // In your Railway backend server.js - UPDATE THIS:
-
-// REPLACE your current CORS config with this:
-
 
 // Enable CORS for all origins
 app.use(cors({
@@ -76,7 +71,7 @@ app.options('*', cors()); // Enable pre-flight for all routes
     });
   });
 
-  // Test route to verify CORS
+ 
   app.get('/api/test-cors', (req, res) => {
     res.json({ 
       success: true, 
@@ -85,7 +80,6 @@ app.options('*', cors()); // Enable pre-flight for all routes
     });
   });
 
-  // Add this debug route to your server.js file:
   app.get('/api/debug-all-routes', (req, res) => {
     const routes = [];
     
@@ -114,7 +108,7 @@ app.options('*', cors()); // Enable pre-flight for all routes
   });
 
 
-  // Add this to server.js temporarily
+
   app.get('/api/debug-embeddings', async (req, res) => {
     try {
       const { recommendBooks } = require('./services/recommendService');
@@ -152,14 +146,14 @@ app.options('*', cors()); // Enable pre-flight for all routes
   });
 
 
-// Add this to server.js temporarily to see Qdrant contents
+
 app.get('/api/debug-qdrant-payloads', async (req, res) => {
   try {
     const { qdrant } = require('./config/qdrantConfig');
     
     console.log('🔍 Debugging Qdrant payloads...');
     
-    // Get some sample points
+  
     const samplePoints = await qdrant.scroll("books_metadata", {
       limit: 5,
       with_payload: true,
@@ -181,7 +175,7 @@ app.get('/api/debug-qdrant-payloads', async (req, res) => {
       };
     });
     
-    // Also check what fields might contain book-like data
+  
     const allFields = new Set();
     samplePoints.points.forEach(point => {
       Object.keys(point.payload || {}).forEach(key => allFields.add(key));
@@ -203,7 +197,7 @@ app.get('/api/debug-qdrant-payloads', async (req, res) => {
 
 
 
-  // Database connection
+
   const connectDB = require('./config/mongooseConfig');
   connectDB();
 

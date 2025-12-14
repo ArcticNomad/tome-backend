@@ -11,7 +11,7 @@ const CONFIG = {
   embeddingDim: Number(process.env.EMBEDDING_DIM) || 768
 };
 
-console.log('🔧 Qdrant Configuration:');
+console.log(' Qdrant Configuration:');
 console.log(`   URL: ${CONFIG.qdrantUrl}`);
 console.log(`   Collection: ${CONFIG.qdrantCollection}`);
 console.log(`   API Key: ${CONFIG.qdrantApiKey ? 'Set' : 'Not set'}`);
@@ -24,7 +24,7 @@ const qdrant = new QdrantClient({
 // Test connection function
 async function testQdrantConnection() {
   try {
-    console.log('🔌 Testing Qdrant connection...');
+    console.log(' Testing Qdrant connection...');
     const collections = await qdrant.getCollections();
     console.log(`✅ Qdrant connected. Available collections: ${collections.collections.length}`);
     
@@ -34,14 +34,14 @@ async function testQdrantConnection() {
     );
     
     if (!collectionExists) {
-      console.warn(`⚠️ Collection "${CONFIG.qdrantCollection}" not found in Qdrant`);
-      console.warn('💡 You need to create the collection and upload book embeddings');
+      console.warn(`Collection "${CONFIG.qdrantCollection}" not found in Qdrant`);
+      console.warn(' You need to create the collection and upload book embeddings');
     }
     
     return true;
   } catch (error) {
-    console.error('❌ Qdrant connection failed:', error.message);
-    console.log('💡 To start Qdrant locally:');
+    console.error(' Qdrant connection failed:', error.message);
+    console.log(' To start Qdrant locally:');
     console.log('   1. Install Docker');
     console.log('   2. Run: docker run -p 6333:6333 qdrant/qdrant');
     console.log('   3. Wait for Qdrant to start, then restart your backend');

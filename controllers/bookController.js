@@ -1,10 +1,9 @@
 // backend/controllers/bookController.js
 const Book = require('../models/Book');
 const mongoose = require('mongoose');
-// backend/controllers/bookController.js
-// Add this function
 
-// Get single book by ID (MongoDB _id or Gutenberg ID)
+
+
 const getBookById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -13,15 +12,15 @@ const getBookById = async (req, res) => {
     
     let book;
     
-    // Check if it's a MongoDB ObjectId format
+    
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
       // Search by MongoDB _id
       book = await Book.findById(id);
     } else {
-      // Search by Gutenberg ID (most likely what you're using)
+      // Search by Gutenberg ID
       book = await Book.findOne({ gutenbergId: id });
       
-      // If not found by Gutenberg ID, try as regular string ID
+    
       if (!book) {
         book = await Book.findOne({ _id: id });
       }
@@ -133,7 +132,6 @@ const getAllBooks = async (req, res) => {
   }
 };
 
-// backend/controllers/bookController.js - Add a dedicated pagination endpoint
 const getBooksWithPagination = async (req, res) => {
   try {
     console.log('📚 Getting books with pagination...');
@@ -150,14 +148,14 @@ const getBooksWithPagination = async (req, res) => {
       availableOnly = true
     } = req.query;
 
-    // Build query
+  
     let query = {};
     
     if (availableOnly === 'true') {
       query.isAvailable = true;
     }
 
-    // Handle search
+  
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
@@ -196,7 +194,6 @@ const getBooksWithPagination = async (req, res) => {
       query.subjects = { $regex: categoryMap[category], $options: 'i' };
     }
 
-    // Sort options
     const sortOptions = {};
     if (sortBy === 'issuedDate') {
       sortOptions.issuedDate = sortOrder === 'desc' ? -1 : 1;
@@ -208,14 +205,13 @@ const getBooksWithPagination = async (req, res) => {
       sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
     }
 
-    // Execute query with pagination
     const books = await Book.find(query)
       .sort(sortOptions)
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .select('title author coverImageUrl downloadCount gutenbergId subjects');
 
-    // Get total count for pagination
+    
     const total = await Book.countDocuments(query);
 
     console.log(`✅ Found ${books.length} books (Page ${page}, Limit ${limit}, Total: ${total})`);
@@ -242,7 +238,6 @@ const getBooksWithPagination = async (req, res) => {
   }
 };
 
-// Get recently added books - FIXED
 const getRecentlyAdded = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
@@ -272,7 +267,7 @@ const getRecentlyAdded = async (req, res) => {
   }
 };
 
-// Get popular books - FIXED
+// Get popular books
 const getPopularBooks = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
@@ -282,7 +277,7 @@ const getPopularBooks = async (req, res) => {
     const books = await Book.find({ 
       isAvailable: true
     })
-    .sort({ downloadCount: -1 }) // Sort by download count descending
+    .sort({ downloadCount: -1 }) 
     .limit(parseInt(limit))
     .select('title author coverImageUrl downloadCount gutenbergId subjects');
 
@@ -302,14 +297,12 @@ const getPopularBooks = async (req, res) => {
   }
 };
 
-// backend/controllers/bookController.js - Fix fantasy books function
 const getFantasyBooks = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
 
     console.log('🧙‍♂️ Getting fantasy books...');
 
-    // More comprehensive fantasy search terms
     const fantasyKeywords = [
       'fantasy', 'magic', 'fairy', 'myth', 'dragon', 'wizard', 
       'witch', 'sorcery', 'enchanted', 'mythical', 'legend',
@@ -321,7 +314,6 @@ const getFantasyBooks = async (req, res) => {
       ,'Monsters','Fiction','Dark Fantasy','High Fantasy','Urban Fantasy'
     ];
 
-    // Build a more flexible query
     const books = await Book.find({
       isAvailable: true,
       $or: [
@@ -385,7 +377,7 @@ const getFantasyBooks = async (req, res) => {
   }
 };
 
-// Get featured books for bento grid - FIXED
+// Get featured books for bento grid
 const getFeaturedBooks = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
@@ -415,8 +407,7 @@ const getFeaturedBooks = async (req, res) => {
   }
 };
 
-// Get books by genre/category - FIXED
-// Get books by genre/category - FIXED
+
 const getBooksByGenre = async (req, res) => {
   try {
     const { genre } = req.params;
@@ -424,7 +415,6 @@ const getBooksByGenre = async (req, res) => {
 
     console.log(`📖 Getting ${genre} books...`);
 
-    // Enhanced genre map with more genres including Thriller and Sci-Fi
     const genreMap = {
       'Fiction': ['fiction', 'novel', 'story', 'literature'],
       'Science Fiction': ['science fiction', 'sci-fi', 'sf', 'space opera', 'cyberpunk', 'future', 'space', 'alien', 'robot', 'android', 'dystopia'],
@@ -441,12 +431,12 @@ const getBooksByGenre = async (req, res) => {
       'Horror': ['horror', 'ghost', 'supernatural', 'terror', 'fear', 'haunted', 'monster']
     };
 
-    // Handle both "Science Fiction" and "Sci-Fi" as the same
+
     let searchTerms = genreMap[genre] || [genre.toLowerCase()];
     
     console.log(`🔍 Search terms for ${genre}:`, searchTerms);
 
-    // Build a more flexible query
+   
     const books = await Book.find({
       isAvailable: true,
       $or: [
@@ -520,7 +510,7 @@ const getBooksByGenre = async (req, res) => {
     });
   }
 };
-// Get highly reviewed books - FIXED
+
 const getHighlyReviewedBooks = async (req, res) => {
   try {
     const { limit = 8 } = req.query;
@@ -530,7 +520,7 @@ const getHighlyReviewedBooks = async (req, res) => {
     const books = await Book.find({
       isAvailable: true
     })
-    .sort({ downloadCount: -1 }) // Use download count as proxy for popularity
+    .sort({ downloadCount: -1 }) 
     .limit(parseInt(limit))
     .select('title author coverImageUrl downloadCount gutenbergId subjects');
 
@@ -550,7 +540,7 @@ const getHighlyReviewedBooks = async (req, res) => {
   }
 };
 
-// Get book statistics for homepage - FIXED
+
 const getHomepageStats = async (req, res) => {
   try {
     console.log('📊 Getting homepage stats...');
@@ -571,7 +561,7 @@ const getHomepageStats = async (req, res) => {
       data: {
         totalBooks,
         totalDownloads: totalDownloads[0]?.total || 0,
-        recentAdditions: totalBooks, // Simplified
+        recentAdditions: totalBooks,
         sampleBooksCount: sampleBooks.length,
         liveData: true
       }
@@ -586,9 +576,7 @@ const getHomepageStats = async (req, res) => {
   }
 };
 
-// backend/controllers/bookController.js
-// Add this function for related books
-// backend/controllers/bookController.js or similar
+
 const getRelatedBooks = async (req, res) => {
   try {
     const { id } = req.params;
@@ -601,7 +589,7 @@ const getRelatedBooks = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(id)) {
       book = await Book.findById(id);
     } else {
-      // Assuming it's a gutenbergId (string/number)
+   
       book = await Book.findOne({ gutenbergId: id });
     }
     
@@ -639,9 +627,6 @@ const getRelatedBooks = async (req, res) => {
     });
   }
 };
-
-// backend/controllers/bookController.js
-// Add this function to your existing bookController
 
 /**
  * Get book with full text URL

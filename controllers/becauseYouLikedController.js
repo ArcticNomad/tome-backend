@@ -5,13 +5,13 @@ const Book = require('../models/Book');
 const getBecauseYouLiked = async (req, res) => {
 
    console.log('========================================');
-  console.log('🎯 [BECAUSE-YOU-LIKED] ENDPOINT HIT!');
-  console.log('📋 Full URL:', req.originalUrl);
-  console.log('📋 Path:', req.path);
-  console.log('📋 Query params:', req.query);
-  console.log('🔑 Firebase UID:', req.firebaseUid);
-  console.log('✅ Is authenticated:', req.isAuthenticated);
-  console.log('👤 User data:', req.userData);
+  console.log(' [BECAUSE-YOU-LIKED] ENDPOINT usaed');
+  console.log(' Full URL:', req.originalUrl);
+  console.log(' Path:', req.path);
+  console.log(' Query params:', req.query);
+  console.log(' Firebase UID:', req.firebaseUid);
+  console.log(' Is authenticated:', req.isAuthenticated);
+  console.log(' User data:', req.userData);
   console.log('========================================');
   
   const firebaseUid = req.firebaseUid;
@@ -34,7 +34,7 @@ const getBecauseYouLiked = async (req, res) => {
       });
     }
     
-    // Get because-you-liked recommendations
+
     const result = await getBecauseYouLikedRecommendations(firebaseUid, parseInt(limit));
     
     if (result.books.length > 0) {
@@ -50,7 +50,7 @@ const getBecauseYouLiked = async (req, res) => {
       });
     }
     
-    // Fallback: Get popular books
+    
     console.log('🔄 Falling back to popular books');
     const popularBooks = await Book.find()
       .sort({ downloadCount: -1 })
