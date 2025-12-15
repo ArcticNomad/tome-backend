@@ -204,53 +204,71 @@ const createUserProfile = async (req, res) => {
   };
 
   // Update user profile
-  const updateUserProfile = async (req, res) => {
-    try {
-      const user = await User.findOne({ firebaseUid: req.user.uid });
-      
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Allowed fields to update
-      const allowedUpdates = [
-        'displayName',
-        'personalDetails',
-        'readingPreferences',
-        'preferences'
-      ];
-
-      // Update only allowed fields
-      Object.keys(req.body).forEach(field => {
-        if (allowedUpdates.includes(field) && req.body[field] !== undefined) {
-          if (field === 'personalDetails' || field === 'readingPreferences') {
-            // Merge nested objects
-            user[field] = { ...user[field], ...req.body[field] };
-          } else {
-            user[field] = req.body[field];
-          }
-        }
-      });
-
-      await user.save();
-
-      res.json({
-        success: true,
-        message: 'Profile updated successfully',
-        data: user.getPublicProfile()
-      });
-    } catch (error) {
-      console.error('Update user profile error:', error);
-      res.status(500).json({
+// Update user profile - Improved version
+const updateUserProfile = async (req, res) => {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+    
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: 'Error updating profile',
-        error: error.message
+        message: 'User not found'
       });
     }
-  };
+
+    console.log('📝 Received update request:', req.body);
+
+    // Handle displayName
+    if (req.body.displayName !== undefined) {
+      user.displayName = req.body.displayName;
+    }
+
+    // Handle personalDetails
+    if (req.body.personalDetails !== undefined) {
+      user.personalDetails = {
+        ...user.personalDetails,
+        ...req.body.personalDetails
+      };
+    }
+
+    // Handle readingPreferences - THIS IS THE KEY PART
+    if (req.body.readingPreferences !== undefined) {
+      // Ensure favoriteGenres is always an array
+      if (req.body.readingPreferences.favoriteGenres !== undefined) {
+        const genres = req.body.readingPreferences.favoriteGenres;
+        user.readingPreferences.favoriteGenres = Array.isArray(genres) ? genres : [];
+      }
+      
+      // Handle readingGoal
+      if (req.body.readingPreferences.readingGoal !== undefined) {
+        user.readingPreferences.readingGoal = req.body.readingPreferences.readingGoal;
+      }
+      
+      // Handle favoriteBook
+      if (req.body.readingPreferences.favoriteBook !== undefined) {
+        user.readingPreferences.favoriteBook = req.body.readingPreferences.favoriteBook;
+      }
+      
+      console.log('✅ Updated readingPreferences:', user.readingPreferences);
+    }
+
+    // Save changes
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: user.getPublicProfile()
+    });
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating profile',
+      error: error.message
+    });
+  }
+};
 
   // ========== BOOKSHELVES MANAGEMENT ==========
 
