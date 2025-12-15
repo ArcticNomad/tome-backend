@@ -4,9 +4,7 @@
 
   // ========== PROFILE MANAGEMENT ==========
 
-  // Create user profile (after Firebase signup)
-  // backend/controllers/userController.js → REPLACE createUserProfile
-// backend/controllers/userController.js - UPDATE createUserProfile
+  // Create user profile (after Firebase signup
 
 const createUserProfile = async (req, res) => {
   try {
@@ -43,9 +41,9 @@ const createUserProfile = async (req, res) => {
       country = parts[1] || parts[0] || '';
     }
 
-    // FIX: Only include gender in personalDetails if it's valid
+    //  Only include gender in personalDetails if it's valid
     const personalDetails = {
-      // DO NOT include gender field if it's undefined/empty
+      // noT include gender field if it's undefined/empty
       ...(gender && ['male', 'female', 'other', 'prefer-not-to-say'].includes(gender) && { gender }),
       birthDate: birthDate ? new Date(birthDate) : null,
       location: { city, country },
@@ -54,7 +52,7 @@ const createUserProfile = async (req, res) => {
     };
 
     // Create user
-    const user = new User({
+    const user = new User({ 
       firebaseUid,
       email: email || '',
       displayName: displayName || email?.split('@')[0] || 'User',

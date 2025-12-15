@@ -46,7 +46,7 @@ router.get('/profile/check-availability', checkAvailability);
 const protectedRoute = [verifyFirebaseToken, trackDailyActivity];
 
 // ========== PROFILE ROUTES ==========
-router.post('/profile/create', protectedRoute, createUserProfile);
+router.post('/profile/create', createUserProfile);
 router.get('/profile', protectedRoute, getUserProfile);
 router.put('/profile', protectedRoute, updateUserProfile);
 
