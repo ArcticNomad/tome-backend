@@ -204,7 +204,6 @@ const createUserProfile = async (req, res) => {
   };
 
   // Update user profile
-// Update user profile - Improved version
 const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ firebaseUid: req.user.uid });
@@ -231,9 +230,9 @@ const updateUserProfile = async (req, res) => {
       };
     }
 
-    // Handle readingPreferences - THIS IS THE KEY PART
+    // Handle readingPreferences 
     if (req.body.readingPreferences !== undefined) {
-      // Ensure favoriteGenres is always an array
+      // Ensure favoriteGenres is always an arra
       if (req.body.readingPreferences.favoriteGenres !== undefined) {
         const genres = req.body.readingPreferences.favoriteGenres;
         user.readingPreferences.favoriteGenres = Array.isArray(genres) ? genres : [];

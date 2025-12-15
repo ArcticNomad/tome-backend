@@ -26,10 +26,10 @@ const getBecauseYouLikedRecommendations = async (firebaseUid, limit = 10) => {
     .sort({ rating: -1, createdAt: -1 }) // Sort by rating first, then recent
     .lean();
     
-    console.log(`📊 Found ${userReviews.length} highly-rated books by user`);
+    console.log(` Found ${userReviews.length} highly-rated books by user`);
     
     if (userReviews.length === 0) {
-      console.log('⚠️ User has no highly-rated books (4+ stars)');
+      console.log(' User has no highly-rated books (4+ stars)');
       return { 
         books: [], 
         source: 'no_ratings', 
@@ -65,7 +65,7 @@ const getBecauseYouLikedRecommendations = async (firebaseUid, limit = 10) => {
       }))
       .sort((a, b) => b.priority - a.priority); // Higher priority first
     
-    console.log('📚 Available highly-rated books:');
+    console.log(' Available highly-rated books:');
     sortedBooks.forEach((book, i) => {
       console.log(`  ${i + 1}. Book ID: ${book.bookId}, Rating: ${book.rating}/5, Last Used: ${book.lastUsed}`);
     });

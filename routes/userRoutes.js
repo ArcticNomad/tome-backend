@@ -25,12 +25,12 @@ const router = express.Router();
 
 
 router.get('/test', (req, res) => {
-  console.log('✅ Test route hit!');
+  console.log('Test route hit');
   res.json({ message: 'User routes are working!' });
 });
 
 router.post('/profile/create-test', (req, res) => {
-  console.log('✅ Profile create test route hit!');
+  console.log(' Profile create test route hit!');
   console.log('Body:', req.body);
   res.json({ 
     success: true, 

@@ -1,7 +1,7 @@
 // backend/controllers/searchController.js - FIXED WITH ES MODULE COMPATIBILITY
 const { qdrant } = require("../config/qdrantConfig");
 const Book = require("../models/Book");
-// REMOVED: const { pipeline } = require("@xenova/transformers"); // This causes the error
+
 
 let embedder = null;
 
@@ -22,7 +22,7 @@ const generateEmbedding = async (text) => {
   return Array.from(output.data);
 };
 
-// FIXED CACHE IMPLEMENTATION WITH PAGINATION
+
 const semanticCache = new Map();
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -59,7 +59,7 @@ const getSemanticResults = async (query, page = 1, limit = 24) => {
     const totalResultsResponse = await qdrant.search("books_metadata", {
       vector: queryEmbedding,
       limit: 1000, // Increase limit for better total estimation
-      with_payload: true,  // CRITICAL: Need payload to get book IDs
+      with_payload: true,  
       score_threshold: 0.15,
       with_vector: false
     });
@@ -201,7 +201,7 @@ const hybridSearch = async (req, res) => {
       }).sort((a, b) => a._semanticRank - b._semanticRank);
     }
 
-    // 4. COMBINE results with deduplication for THIS PAGE
+    //  results with deduplication for THIS PAGE
     const seenIds = new Set();
     const combinedBooks = [];
 

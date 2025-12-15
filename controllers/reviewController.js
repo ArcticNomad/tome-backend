@@ -42,6 +42,7 @@ const getBookReviews = async (req, res) => {
 
     // Get total count and average rating
     const total = await Review.countDocuments(query);
+
     const stats = await Review.aggregate([
       { $match: query },
       { 
@@ -98,7 +99,7 @@ const createReview = async (req, res) => {
     const { rating, title, content } = req.body;
     const user = req.user;
 
-    console.log(`✍️ Creating review for book: ${bookId} by user: ${user.uid}`);
+    console.log(`Creating review for book: ${bookId} by user: ${user.uid}`);
     console.log('Request body:', { rating, title, content });
     console.log('User info:', { uid: user.uid, email: user.email, name: user.name });
 
