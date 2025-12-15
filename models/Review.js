@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
   bookId: {
-    type: String, // Changed from ObjectId to String to store gutenbergId
+    type: String, 
     required: true
   },
   userId: {

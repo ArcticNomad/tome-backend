@@ -39,7 +39,7 @@ const bookSchema = new mongoose.Schema({
 
 );
 
-// Add index for better performance
+
 bookSchema.index({ gutenbergId: 1 });
 bookSchema.index({ downloadCount: -1 });
 bookSchema.index({ author: 1 });

@@ -738,7 +738,7 @@ const getFullTextUrl = async (req, res) => {
     
     const fullTextUrl = `https://storage.googleapis.com/book_text_data/books/${book.gutenbergId}/full-text.txt`;
     
-    // Optional: Check if the file exists (makes a HEAD request)
+    // Check if the file exists (makes a HEAD request)
     try {
       const headResponse = await fetch(fullTextUrl, { method: 'HEAD' });
       if (!headResponse.ok) {

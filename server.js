@@ -10,9 +10,11 @@ const authRoutes = require('./routes/authRoutes');
 // Enable CORS for all origins
 app.use(cors({
   origin: [
-    'https://tome-frontend-arc.vercel.app', // Your Vercel frontend
-    'http://localhost:5173',                 // Local dev
-    'http://localhost:3000'                  // Alternative local
+      'https://tome-frontend-arc.vercel.app', // Your Vercel frontend
+    'https://www.tome.live',                // Add your new domain
+    'https://tome.live',                    // Add without www
+    'http://localhost:5173',                // Local dev
+    'http://localhost:3000'                                 // Alternative local
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
